@@ -1,26 +1,158 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F0FAF8;
+  --foreground: #0F172A;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@theme {
+  /* ---- Primary Green Palette ---- */
+  --color-primary-green: #127A6A;
+  --color-dark-green: #075E52;
+  --color-accent-green: #25B89A;
+  --color-light-mint: #E8F7F4;
+  --color-soft-green: #DFF5EF;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* ---- Legacy aliases (keep existing class names working) ---- */
+  --color-primary-blue: #127A6A;
+  --color-medical-green: #127A6A;
+  --color-light-green: #E8F7F4;
+  --color-soft-blue: #DFF5EF;
+
+  /* ---- Neutrals ---- */
+  --color-dark-navy: #0F172A;
+  --color-text-grey: #64748B;
+  --color-light-grey: #F0FAF8;
+
+  --font-sans: var(--font-inter), sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-light-grey);
+  color: var(--color-dark-navy);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  overflow-x: hidden;
+}
+
+/* ─────────────────────────────────────────
+   Glassmorphism Utilities
+───────────────────────────────────────── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(18, 122, 106, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(18, 122, 106, 0.06);
+}
+
+.glass-nav {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(18, 122, 106, 0.1);
+  box-shadow: 0 2px 20px 0 rgba(18, 122, 106, 0.06);
+}
+
+/* ─────────────────────────────────────────
+   Gradient Utilities
+───────────────────────────────────────── */
+.gradient-primary {
+  background: linear-gradient(135deg, #127A6A 0%, #075E52 100%);
+}
+
+.gradient-medical {
+  background: linear-gradient(135deg, #127A6A 0%, #25B89A 100%);
+}
+
+.gradient-soft {
+  background: linear-gradient(135deg, #DFF5EF 0%, #F0FAF8 100%);
+}
+
+.gradient-hero {
+  background:
+    radial-gradient(ellipse at 5% 50%, rgba(18, 122, 106, 0.08) 0%, transparent 65%),
+    radial-gradient(ellipse at 95% 10%, rgba(37, 184, 154, 0.07) 0%, transparent 55%),
+    linear-gradient(160deg, #F0FAF8 0%, #ffffff 60%, #E8F7F4 100%);
+}
+
+/* ─────────────────────────────────────────
+   Hover / Lift Animations
+───────────────────────────────────────── */
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px -15px rgba(18, 122, 106, 0.15);
+}
+
+/* Renamed to glow-green, but keep glow-blue alias for backward compat */
+.glow-green,
+.glow-blue {
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+.glow-green:hover,
+.glow-blue:hover {
+  box-shadow: 0 0 24px rgba(18, 122, 106, 0.45);
+  transform: scale(1.02);
+}
+
+/* ─────────────────────────────────────────
+   Scrollbar Utilities
+───────────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(18, 122, 106, 0.2);
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(18, 122, 106, 0.4);
+}
+
+/* ─────────────────────────────────────────
+   Animated Gradient Border (accent cards)
+───────────────────────────────────────── */
+@keyframes borderGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(18, 122, 106, 0); }
+  50%       { box-shadow: 0 0 0 3px rgba(18, 122, 106, 0.2); }
+}
+.border-pulse {
+  animation: borderGlow 3s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────
+   Stat Section Shimmer Text
+───────────────────────────────────────── */
+.stat-text {
+  text-shadow: 0 2px 12px rgba(255, 255, 255, 0.2);
+}
+
+/* ─────────────────────────────────────────
+   Opacity utility for bg gradients
+───────────────────────────────────────── */
+.bg-primary-green\/8 {
+  background-color: rgba(18, 122, 106, 0.08);
+}
+.shadow-primary-green\/8 {
+  --tw-shadow-color: rgba(18, 122, 106, 0.08);
+}
+.shadow-primary-green\/25 {
+  --tw-shadow-color: rgba(18, 122, 106, 0.25);
+}
+.border-primary-green\/8 {
+  border-color: rgba(18, 122, 106, 0.08);
 }

@@ -45,24 +45,19 @@ export default function Header() {
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform duration-200">
-                <Heart className="w-5 h-5 fill-white" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-extrabold text-base sm:text-lg tracking-wider text-dark-navy leading-tight">
-                  INDIA CARE
-                </span>
-                <span className="text-[10px] sm:text-xs font-semibold text-primary-green tracking-widest leading-none">
-                  CONSULTANCY
-                </span>
-              </div>
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-6">
+
+            {/* ── LEFT: Logo – lives in its own column, can be any size ── */}
+            <Link href="/" className="flex items-center group shrink-0">
+              <img
+                src="/logo.png"
+                alt="India Care Consultancy"
+                className="h-20 w-auto object-contain group-hover:scale-105 transition-transform duration-200 drop-shadow-md"
+              />
             </Link>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-8">
+            {/* ── CENTER: Desktop Navigation ── */}
+            <nav className="hidden lg:flex items-center justify-center gap-8">
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
@@ -83,8 +78,8 @@ export default function Header() {
               ))}
             </nav>
 
-            {/* CTA Buttons */}
-            <div className="hidden lg:flex items-center gap-3">
+            {/* ── RIGHT: CTA Buttons ── */}
+            <div className="hidden lg:flex items-center gap-3 shrink-0">
               {isLoggedIn && patient ? (
                 /* Logged-in: user avatar button */
                 <button
@@ -171,13 +166,7 @@ export default function Header() {
               <div>
                 <div className="flex items-center justify-between pb-6 border-b border-slate-100">
                   <div className="flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center text-white">
-                      <Heart className="w-4 h-4 fill-white" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="font-bold text-sm tracking-wide text-dark-navy">INDIA CARE</span>
-                      <span className="text-[9px] font-semibold text-primary-green tracking-wider">CONSULTANCY</span>
-                    </div>
+                    <img src="/logo.png" alt="India Care Consultancy" className="h-12 w-auto object-contain" />
                   </div>
                   <button onClick={() => setIsOpen(false)} className="p-1 rounded-md text-slate-400 hover:text-slate-600">
                     <X className="w-5 h-5" />

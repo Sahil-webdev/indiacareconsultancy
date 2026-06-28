@@ -209,7 +209,7 @@ function LoginForm({ onSuccess, onSwitchTab }: { onSuccess: (p: PatientProfile) 
 
       <div className="flex items-center justify-center gap-2 text-[11px] text-text-grey pt-1">
         <span>Doctor / Hospital?</span>
-        <a href="http://localhost:3001/login" target="_blank" rel="noopener noreferrer"
+        <a href={`${process.env.NEXT_PUBLIC_PANEL_URL}/login`} target="_blank" rel="noopener noreferrer"
           className="font-bold text-primary-green hover:text-dark-green flex items-center gap-0.5">
           Panel Access <ExternalLink className="w-3 h-3" />
         </a>

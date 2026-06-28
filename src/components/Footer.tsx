@@ -40,17 +40,7 @@ export default function Footer() {
           {/* Logo and Brand details */}
           <div className="flex flex-col gap-4">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center text-white shadow-md">
-                <Heart className="w-5 h-5 fill-white" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-extrabold text-base sm:text-lg tracking-wider text-white leading-tight">
-                  INDIA CARE
-                </span>
-                <span className="text-[10px] sm:text-xs font-semibold text-accent-green tracking-widest leading-none">
-                  CONSULTANCY
-                </span>
-              </div>
+              <img src="/logo.png" alt="India Care Consultancy" className="h-14 w-auto object-contain" />
             </Link>
             <p className="text-sm text-slate-400 mt-2 leading-relaxed">
               India Care Consultancy is a premium healthcare recommendation and consultation portal helping patients find the best suited medical help.

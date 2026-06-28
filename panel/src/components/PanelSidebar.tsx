@@ -15,7 +15,7 @@ import {
   ThumbsUp, Bell, Mail, LayoutTemplate, Megaphone,
   Globe, BookOpen, HelpCircle, Star, Image,
   ScrollText, Plug, SlidersHorizontal, Lock, Database,
-  FileWarning, Clipboard, Briefcase, AlertTriangle,
+  FileWarning, Clipboard, Briefcase, AlertTriangle, Sparkles,
 } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 
@@ -70,7 +70,7 @@ const SUPER_ADMIN_NAV: NavSection[] = [
     items: [
       { label: 'Doctors',      icon: Stethoscope, href: '/dashboard/super-admin/doctors' },
       { label: 'Hospitals',    icon: Building2,   href: '/dashboard/super-admin/hospitals' },
-      { label: 'Specialities', icon: Star,        href: '/dashboard/super-admin/specialities' },
+      { label: 'Specialities', icon: Stethoscope, href: '/dashboard/super-admin/specialities' },
     ],
   },
   {
@@ -84,10 +84,10 @@ const SUPER_ADMIN_NAV: NavSection[] = [
   },
   {
     title: 'Verification',
-    defaultOpen: true,
+    defaultOpen: false,
     items: [
-      { label: 'Doctor Approvals',    icon: UserCheck,    href: '/dashboard/super-admin/verification/doctor-approvals' },
-      { label: 'Hospital Approvals',  icon: BadgeCheck,   href: '/dashboard/super-admin/verification/hospital-approvals' },
+      { label: 'Doctor Approvals',    icon: BadgeCheck,   href: '/dashboard/super-admin/verification/doctor-approvals' },
+      { label: 'Hospital Approvals',  icon: Building2,    href: '/dashboard/super-admin/verification/hospital-approvals' },
       { label: 'Profile Changes',     icon: UserCog,      href: '/dashboard/super-admin/verification/profile-changes' },
       { label: 'Expiring Documents',  icon: FileWarning,  href: '/dashboard/super-admin/verification/expiring-docs' },
       { label: 'Flagged Profiles',    icon: Flag,         href: '/dashboard/super-admin/verification/flagged' },
@@ -118,34 +118,27 @@ const SUPER_ADMIN_NAV: NavSection[] = [
     title: 'Communication',
     defaultOpen: false,
     items: [
-      { label: 'Notifications',     icon: Bell,           href: '/dashboard/super-admin/communication/notifications' },
-      { label: 'Email Templates',   icon: Mail,           href: '/dashboard/super-admin/communication/email' },
-      { label: 'WhatsApp Templates',icon: MessageSquare,  href: '/dashboard/super-admin/communication/whatsapp' },
-      { label: 'SMS Templates',     icon: LayoutTemplate, href: '/dashboard/super-admin/communication/sms' },
-      { label: 'Campaigns',         icon: Megaphone,      href: '/dashboard/super-admin/communication/campaigns' },
-    ],
-  },
-  {
-    title: 'Content',
-    defaultOpen: false,
-    items: [
-      { label: 'Website CMS',   icon: Globe,      href: '/dashboard/super-admin/content/cms' },
-      { label: 'Blog',          icon: BookOpen,   href: '/dashboard/super-admin/content/blog' },
-      { label: 'FAQs',          icon: HelpCircle, href: '/dashboard/super-admin/content/faqs' },
-      { label: 'Testimonials',  icon: Star,       href: '/dashboard/super-admin/content/testimonials' },
-      { label: 'Banners',       icon: Image,      href: '/dashboard/super-admin/content/banners' },
+      { label: 'Push Notifications', icon: Bell,           href: '/dashboard/super-admin/communication/notifications' },
+      { label: 'Email Templates',    icon: Mail,           href: '/dashboard/super-admin/communication/email' },
+      { label: 'WhatsApp Templates', icon: MessageSquare,  href: '/dashboard/super-admin/communication/whatsapp' },
+      { label: 'SMS Templates',      icon: LayoutTemplate, href: '/dashboard/super-admin/communication/sms' },
+      { label: 'Campaigns',          icon: Megaphone,      href: '/dashboard/super-admin/communication/campaigns' },
     ],
   },
   {
     title: 'System',
     defaultOpen: false,
     items: [
-      { label: 'Reports & Analytics', icon: BarChart2,         href: '/dashboard/super-admin/reports' },
-      { label: 'Audit Logs',          icon: ScrollText,        href: '/dashboard/super-admin/audit-log' },
-      { label: 'Integrations',        icon: Plug,              href: '/dashboard/super-admin/integrations' },
-      { label: 'Platform Settings',   icon: SlidersHorizontal, href: '/dashboard/super-admin/settings' },
-      { label: 'Security',            icon: Lock,              href: '/dashboard/super-admin/security' },
-      { label: 'Backup Logs',         icon: Database,          href: '/dashboard/super-admin/backups' },
+      { label: 'Reports & Analytics', icon: BarChart2,  href: '/dashboard/super-admin/reports' },
+      { label: 'Audit Logs',          icon: ScrollText, href: '/dashboard/super-admin/audit-log' },
+      { label: 'Website CMS',         icon: Globe,      href: '/dashboard/super-admin/content/cms' },
+      { label: 'Blog Manager',        icon: BookOpen,   href: '/dashboard/super-admin/content/blog' },
+      { label: 'FAQs',                icon: HelpCircle, href: '/dashboard/super-admin/content/faqs' },
+      { label: 'Testimonials',        icon: Star,       href: '/dashboard/super-admin/content/testimonials' },
+      { label: 'Banners & Media',     icon: Image,      href: '/dashboard/super-admin/content/banners' },
+      { label: 'Integrations',        icon: Plug,       href: '/dashboard/super-admin/integrations' },
+      { label: 'Security',            icon: Lock,       href: '/dashboard/super-admin/security' },
+      { label: 'Backup Logs',         icon: Database,   href: '/dashboard/super-admin/backups' },
     ],
   },
 ];
@@ -167,6 +160,7 @@ const NAV_ITEMS: Record<Exclude<Role, 'super_admin'>, NavItem[]> = {
     { label: 'Profile',      icon: UserCheck,       href: '/dashboard/doctor/profile' },
     { label: 'Availability', icon: Clock,           href: '/dashboard/doctor/availability' },
     { label: 'Earnings',     icon: DollarSign,      href: '/dashboard/doctor/earnings' },
+    { label: 'Promote Profile', icon: Sparkles,      href: '/dashboard/doctor/promote' },
   ],
   hospital: [
     { label: 'Dashboard',    icon: LayoutDashboard, href: '/dashboard/hospital' },
@@ -175,6 +169,7 @@ const NAV_ITEMS: Record<Exclude<Role, 'super_admin'>, NavItem[]> = {
     { label: 'OPD Timings',  icon: FileText,        href: '/dashboard/hospital/opd' },
     { label: 'Reports',      icon: BarChart2,       href: '/dashboard/hospital/reports' },
     { label: 'Payments',     icon: CreditCard,      href: '/dashboard/hospital/payments' },
+    { label: 'Promote Profile', icon: Sparkles,      href: '/dashboard/hospital/promote' },
   ],
 };
 
@@ -379,11 +374,8 @@ export default function PanelSidebar({ role, userName = 'ICC Admin' }: PanelSide
               onClick={closeMobile}
               className={`flex min-w-0 flex-1 items-center gap-3 group ${collapsed ? 'justify-center' : ''}`}
             >
-              <div
-                className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform"
-                style={{ background: 'linear-gradient(135deg, #127A6A, #075E52)' }}
-              >
-                <Heart className="w-5 h-5 text-white fill-white" />
+              <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-md group-hover:scale-105 transition-transform bg-white relative">
+                <img src="/logo.png" alt="ICC Logo" className="w-full h-full object-contain" />
               </div>
               <div className={`panel-sidebar-label min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
                 <span className="font-extrabold text-base tracking-wider block leading-tight whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>

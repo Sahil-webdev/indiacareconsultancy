@@ -146,7 +146,7 @@ export default function LoginPage() {
           <ShieldCheck className="w-4 h-4 text-white/80 flex-shrink-0 mt-0.5" />
           <p className="text-[11px] text-white/70 leading-relaxed">
             This portal is exclusively for patients. Doctors, hospitals, and consultants should use the
-            {' '}<a href="http://localhost:3001/login" target="_blank" rel="noopener noreferrer"
+            {' '}<a href={`${process.env.NEXT_PUBLIC_PANEL_URL}/login`} target="_blank" rel="noopener noreferrer"
               className="text-white font-bold underline underline-offset-2 hover:text-white/90">Panel App ↗</a>.
           </p>
         </motion.div>
@@ -324,7 +324,7 @@ export default function LoginPage() {
           {/* Panel access link */}
           <div className="mt-5 flex items-center justify-center gap-2 text-[11px] text-text-grey">
             <span>Doctor / Hospital / Admin?</span>
-            <a href="http://localhost:3001/login" target="_blank" rel="noopener noreferrer"
+            <a href={`${process.env.NEXT_PUBLIC_PANEL_URL}/login`} target="_blank" rel="noopener noreferrer"
               className="font-bold text-primary-green hover:text-dark-green flex items-center gap-1 transition-colors">
               Panel Access <ExternalLink className="w-3 h-3" />
             </a>

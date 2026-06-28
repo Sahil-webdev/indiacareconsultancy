@@ -123,7 +123,7 @@ export default function PanelLoginPage() {
           style={{ background: 'rgba(239,68,68,0.06)', borderColor: 'rgba(239,68,68,0.15)', color: '#94A3B8' }}>
           <span className="text-red-400 font-bold block mb-1">⚠ Restricted Access</span>
           This panel is exclusively for authorised ICC staff. Patient login is available at the{' '}
-          <a href="http://localhost:3000/login" target="_blank" rel="noopener noreferrer"
+          <a href={`${process.env.NEXT_PUBLIC_SITE_URL}/login`} target="_blank" rel="noopener noreferrer"
             className="font-bold underline underline-offset-2" style={{ color: '#25B89A' }}>
             Website ↗
           </a>
@@ -270,7 +270,7 @@ export default function PanelLoginPage() {
           {/* Patient link */}
           <div className="mt-5 flex items-center justify-center gap-2 text-[11px]" style={{ color: '#4B5563' }}>
             <span>Patient? Login at</span>
-            <a href="http://localhost:3000/login" target="_blank" rel="noopener noreferrer"
+            <a href={`${process.env.NEXT_PUBLIC_SITE_URL}/login`} target="_blank" rel="noopener noreferrer"
               className="font-bold flex items-center gap-1 transition-colors" style={{ color: '#25B89A' }}>
               Website <ExternalLink className="w-3 h-3" />
             </a>

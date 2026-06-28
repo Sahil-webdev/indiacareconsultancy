@@ -113,6 +113,284 @@ const TESTIMONIALS = [
 ];
 
 /* ─────────────────────────────────────────────────────
+   SPOTLIGHT CARD (SUB-COMPONENT)
+───────────────────────────────────────────────────── */
+function SpotlightCard({ item }: { item: any }) {
+  const [imageError, setImageError] = useState(false);
+  const isDoc = item.type === 'doctor';
+  
+  const profileUrl = isDoc ? `/find-doctor/${item.id}` : `/hospitals/${item.id}`;
+  const bookingUrl = isDoc ? `/book-consultation?doctorId=${item.id}` : `/book-consultation?hospitalId=${item.id}`;
+
+  return (
+    <div className="w-full relative group bg-gradient-to-b from-[#0D1520]/90 to-[#050B11]/95 backdrop-blur-3xl border border-white/[0.08] rounded-[24px] p-4 sm:p-6 flex flex-col justify-between overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.8)] hover:border-amber-400/40 hover:shadow-[0_20px_50px_rgba(245,158,11,0.12)] transition-all duration-500 min-h-[180px]">
+      {/* Background glowing gradient lines */}
+      <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-amber-400/5 blur-[50px] pointer-events-none group-hover:bg-amber-400/10 transition-colors duration-500" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-primary-green/5 blur-[50px] pointer-events-none group-hover:bg-primary-green/10 transition-colors duration-500" />
+
+      <div className="relative z-10 w-full flex flex-col justify-between h-full">
+        {/* Main Info Area: Stacks vertically on mobile, but uses flex/grid properly */}
+        <div className="flex flex-row md:grid md:grid-cols-12 gap-4 md:gap-5 items-center md:items-stretch w-full">
+          
+          {/* Avatar (Mobile) / Large Banner (Desktop) */}
+          <div className="md:col-span-4 flex-shrink-0 relative">
+            {/* Desktop Banner View */}
+            <div className="hidden md:flex w-full h-[180px] rounded-xl overflow-hidden border border-white/10 relative p-0.5 bg-slate-900 items-center justify-center shadow-md group-hover:border-amber-400/20 transition-all duration-500">
+              {!imageError && (item.photo || item.image) ? (
+                <img 
+                  src={isDoc ? item.photo : item.image} 
+                  alt={item.name} 
+                  onError={() => setImageError(true)}
+                  className="w-full h-full object-cover rounded-[10px] group-hover:scale-[1.03] transition-transform duration-700"
+                />
+              ) : (
+                <div className="w-full h-full rounded-[10px] bg-gradient-to-br from-slate-800 to-slate-900 flex flex-col items-center justify-center gap-1.5 p-2 text-center">
+                  {isDoc ? (
+                    <Stethoscope className="w-8 h-8 text-emerald-400" />
+                  ) : (
+                    <Building2 className="w-8 h-8 text-amber-400" />
+                  )}
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Vetted Partner</span>
+                </div>
+              )}
+              {/* Overlaid rating & featured label for desktop */}
+              <div className="absolute bottom-2 left-2 right-2 bg-slate-950/80 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-lg flex items-center justify-between shadow-md">
+                <span className="inline-flex items-center gap-0.5 text-[8px] font-black uppercase tracking-wider text-amber-400">
+                  <Award className="w-3 h-3" /> Featured
+                </span>
+                <div className="flex items-center gap-0.5 text-[9px] font-bold text-white">
+                  <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                  <span>{item.rating || 4.9}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile Circular Avatar View */}
+            <div className="flex md:hidden w-14 h-14 rounded-full overflow-hidden border border-white/10 relative p-0.5 bg-slate-900 items-center justify-center shadow-md">
+              {!imageError && (item.photo || item.image) ? (
+                <img 
+                  src={isDoc ? item.photo : item.image} 
+                  alt={item.name} 
+                  onError={() => setImageError(true)}
+                  className="w-full h-full object-cover rounded-full animate-fade-in"
+                />
+              ) : (
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+                  {isDoc ? (
+                    <Stethoscope className="w-5 h-5 text-emerald-400" />
+                  ) : (
+                    <Building2 className="w-5 h-5 text-amber-400" />
+                  )}
+                </div>
+              )}
+              {/* Verification tiny checkmark for mobile */}
+              <div className="absolute -bottom-0.5 -right-0.5 bg-gradient-to-r from-emerald-400 to-teal-500 text-white p-0.5 rounded-full border border-[#0A1118] shadow-md">
+                <BadgeCheck className="w-2.5 h-2.5" />
+              </div>
+            </div>
+          </div>
+
+          {/* Right/Middle Details (Spans 8 on Desktop, takes remaining flex space on Mobile) */}
+          <div className="md:col-span-8 flex-1 min-w-0 text-left">
+            {/* Desktop header badges */}
+            <div className="hidden md:flex items-center justify-between gap-2 mb-2">
+              <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-400/10 text-amber-400 border border-amber-400/20">
+                <Sparkles className="w-3 h-3 text-amber-400" /> PREMIER
+              </span>
+              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-full">
+                <span className="w-1 h-1 rounded-full bg-emerald-400 animate-ping" /> NMC Verified
+              </span>
+            </div>
+
+            {/* Mobile header info */}
+            <div className="flex md:hidden items-center justify-between gap-2 mb-1">
+              <span className="text-[8px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1">
+                ★ {item.rating || 4.9} Premier Partner
+              </span>
+            </div>
+
+            {/* Title / Name */}
+            <h3 className="text-sm sm:text-base md:text-lg font-black bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent group-hover:from-amber-200 group-hover:to-amber-400 transition-all leading-tight tracking-tight truncate">
+              {item.name}
+            </h3>
+            
+            {/* Speciality */}
+            <p className="text-[10px] md:text-[11px] text-accent-green font-bold leading-none mt-1">
+              {isDoc ? item.speciality : 'Accredited Hospital'}
+            </p>
+
+            {/* Stats (Desktop: Single Row stats, Mobile: tight dot separated text) */}
+            <div className="hidden md:flex flex-wrap gap-x-3.5 gap-y-1.5 mt-3 text-[11px] text-slate-300 font-semibold border-t border-white/5 pt-2.5">
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-emerald-400" /> {item.city}
+              </span>
+              {isDoc ? (
+                <>
+                  <span className="text-slate-600 font-normal">|</span>
+                  <span className="flex items-center gap-1">
+                    <Award className="w-3.5 h-3.5 text-amber-400" /> {item.experience} Yrs Exp
+                  </span>
+                  <span className="text-slate-600 font-normal">|</span>
+                  <span className="text-amber-400 font-bold">
+                    ₹{item.consultationFee} Fee
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-slate-600 font-normal">|</span>
+                  <span className="flex items-center gap-1">
+                    <Shield className="w-3.5 h-3.5 text-amber-400" /> NABH Vetted
+                  </span>
+                </>
+              )}
+            </div>
+
+            {/* Mobile compact stats row */}
+            <div className="flex md:hidden flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1.5 text-[10px] text-slate-400 font-semibold">
+              <span>{item.city}</span>
+              <span>•</span>
+              {isDoc ? (
+                <>
+                  <span>{item.experience} Yrs Exp</span>
+                  <span>•</span>
+                  <span className="text-amber-400 font-bold">₹{item.consultationFee}</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-amber-400">NABH Vetted</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Tagline quotes container */}
+        {item.tagline && (
+          <div className="mt-3 md:mt-2.5 p-2 px-3 rounded-xl bg-white/[0.01] border border-white/[0.04] text-[10px] md:text-[11px] text-slate-300 leading-normal italic text-center relative overflow-hidden">
+            <span className="absolute -top-1 -left-1 text-2xl font-serif text-white/5 md:hidden">“</span>
+            "{item.tagline}"
+          </div>
+        )}
+
+        {/* Bottom action buttons */}
+        <div className="mt-4 pt-3 border-t border-white/5 flex items-center gap-3">
+          <Link 
+            href={profileUrl}
+            className="flex-1 text-center text-[10px] md:text-[11px] font-bold text-slate-300 bg-white/5 hover:bg-white/10 border border-white/[0.08] py-2 rounded-lg transition-all"
+          >
+            View Profile
+          </Link>
+          <Link
+            href={bookingUrl}
+            className="flex-1 text-center text-[10px] md:text-[11px] font-black text-slate-955 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 py-2 rounded-lg shadow-md transition-all flex items-center justify-center gap-1 hover-lift"
+          >
+            Book Slot <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────
+   SPOTLIGHT CAROUSEL
+───────────────────────────────────────────────────── */
+function SpotlightCarousel({ items }: { items: any[] }) {
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  useEffect(() => {
+    if (items.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveIdx(prev => (prev + 1) % items.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [items.length, activeIdx]);
+
+  const handlePrev = () => {
+    setActiveIdx(prev => (prev - 1 + items.length) % items.length);
+  };
+
+  const handleNext = () => {
+    setActiveIdx(prev => (prev + 1) % items.length);
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      {/* Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }} 
+        whileInView={{ opacity: 1, y: 0 }} 
+        viewport={{ once: true }}
+        className="text-center max-w-xl mx-auto mb-8 sm:mb-10"
+      >
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/10 text-amber-400 border border-amber-400/20 text-[9px] font-black uppercase tracking-[0.2em] mb-3 shadow-[0_0_10px_rgba(245,158,11,0.05)]">
+          <Sparkles className="w-3 h-3 text-amber-400 animate-spin-slow" /> PREMIER PARTNER SPOTLIGHT
+        </div>
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
+          Top-Tier Healthcare Experts
+        </h2>
+        <p className="text-xs text-slate-400 mt-2.5 max-w-md mx-auto leading-relaxed">
+          NMC-verified specialists and accredited hospitals offering premium clinical care.
+        </p>
+      </motion.div>
+
+      {/* Slide Viewport Wrapper: Mobile px-0 gives full width, sm has padding for chevrons */}
+      <div className="relative max-w-2xl mx-auto px-0 sm:px-12">
+        {/* Navigation Chevrons: hidden on mobile, visible on desktop */}
+        {items.length > 1 && (
+          <>
+            <button 
+              onClick={handlePrev}
+              className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/5 border border-white/10 items-center justify-center text-slate-400 hover:text-white hover:bg-white/15 transition-all z-30 backdrop-blur-md cursor-pointer"
+              aria-label="Previous Slide"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={handleNext}
+              className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/5 border border-white/10 items-center justify-center text-slate-400 hover:text-white hover:bg-white/15 transition-all z-30 backdrop-blur-md cursor-pointer"
+              aria-label="Next Slide"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </>
+        )}
+
+        {/* Carousel Slider Frame */}
+        <div className="overflow-hidden rounded-[24px] p-0.5">
+          <div 
+            className="flex transition-transform duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]"
+            style={{ transform: `translateX(-${activeIdx * 100}%)` }}
+          >
+            {items.map((item) => (
+              <div key={item.id} className="w-full flex-shrink-0 p-0.5">
+                <SpotlightCard item={item} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Carousel dots indicators */}
+      {items.length > 1 && (
+        <div className="flex justify-center gap-1.5 mt-6">
+          {items.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setActiveIdx(idx)}
+              className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                idx === activeIdx ? 'w-5 bg-amber-400' : 'w-1.5 bg-white/10 hover:bg-white/20'
+              }`}
+              aria-label={`Go to slide ${idx + 1}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────
    MAIN HOMEPAGE
 ───────────────────────────────────────────────────── */
 export default function Homepage() {
@@ -122,6 +400,15 @@ export default function Homepage() {
   const [budget, setBudget] = useState('');
   const [testimonialIdx, setTestimonialIdx] = useState(0);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [promotedItems, setPromotedItems] = useState<any[]>([]);
+
+  // Fetch promoted profiles
+  useEffect(() => {
+    fetch('/api/promote')
+      .then(res => res.json())
+      .then(data => setPromotedItems(data))
+      .catch(err => console.error('Failed to load promoted items:', err));
+  }, []);
 
   // Testimonial auto-play
   useEffect(() => {
@@ -311,11 +598,30 @@ export default function Homepage() {
         {/* Scroll indicator */}
         <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 2, repeat: Infinity }}
           className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 text-text-grey cursor-pointer"
-          onClick={() => document.getElementById('why-icc')?.scrollIntoView({ behavior: 'smooth' })}>
+          onClick={() => {
+            const el = document.getElementById('featured-spotlight') || document.getElementById('why-icc');
+            el?.scrollIntoView({ behavior: 'smooth' });
+          }}>
           <span className="text-[10px] font-bold uppercase tracking-widest">Scroll</span>
           <ChevronDown className="w-4 h-4" />
         </motion.div>
       </section>
+
+      {/* ═══════════════════════════════════════════════
+          SECTION 1.5 — PREMIER SPOTLIGHT (PROMOTED PROFILES)
+      ═══════════════════════════════════════════════ */}
+      {promotedItems && promotedItems.length > 0 && (
+        <section id="featured-spotlight" className="py-10 sm:py-14 relative overflow-hidden bg-[#0A1118] border-b border-slate-900">
+          {/* Futuristic Glowing Backdrops */}
+          <div className="absolute top-0 left-1/4 -translate-y-1/2 w-[400px] h-[400px] bg-primary-green/10 rounded-full blur-[100px] pointer-events-none" />
+          <div className="absolute bottom-0 right-1/4 translate-y-1/2 w-[450px] h-[450px] bg-amber-400/5 rounded-full blur-[120px] pointer-events-none" />
+          {/* Subtle grid mesh overlay */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+
+          {/* Carousel State & Hooks Wrapper */}
+          <SpotlightCarousel items={promotedItems} />
+        </section>
+      )}
 
       {/* ═══════════════════════════════════════════════
           SECTION 2 — WHY ICC

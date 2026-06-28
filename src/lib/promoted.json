@@ -1,0 +1,37 @@
+[
+  {
+    "id": "doc_1",
+    "name": "Dr. Ramesh Kumar",
+    "type": "doctor",
+    "photo": "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=400",
+    "speciality": "Cardiology",
+    "rating": 4.9,
+    "experience": 18,
+    "city": "Delhi",
+    "consultationFee": 1500,
+    "tagline": "Leading Senior Cardiologist · 18+ Years Expert AIIMS Alumnus",
+    "promotedAt": "2026-06-28T07:45:44.568Z"
+  },
+  {
+    "id": "hosp_1",
+    "name": "Apollo Hospital Indraprastha",
+    "type": "hospital",
+    "image": "https://images.unsplash.com/photo-1586773860418-d3b3de97e963?auto=format&fit=crop&q=80&w=800",
+    "departments": [
+      "Cardiology",
+      "Neurology",
+      "Orthopedics",
+      "Pediatrics"
+    ],
+    "rating": 4.8,
+    "city": "Delhi",
+    "address": "Mathura Road, Sarita Vihar, New Delhi",
+    "facilities": [
+      "ICU (100+ Beds)",
+      "24/7 Emergency",
+      "Robotic Surgery"
+    ],
+    "tagline": "World-Class Multispeciality Care & Premier Clinical Excellence",
+    "promotedAt": "2026-06-28T07:45:44.568Z"
+  }
+]

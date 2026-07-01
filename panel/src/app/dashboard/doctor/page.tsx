@@ -6,7 +6,6 @@ import {
   Calendar, Users, Star, DollarSign, Clock, CheckCircle2,
   XCircle, Bell, ChevronDown, MapPin, Phone, Video
 } from 'lucide-react';
-import PanelSidebar from '@/components/PanelSidebar';
 
 const APPOINTMENTS = [
   { id: 1, patient: 'Rahul Sharma',  age: 32, concern: 'Chest pain evaluation',    date: 'Jun 18, 2026', time: '10:30 AM', type: 'In-Person', status: 'Confirmed' },
@@ -29,10 +28,7 @@ export default function DoctorDashboard() {
   });
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <PanelSidebar role="doctor" userName="Dr. Ramesh Kumar" />
-
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'var(--bg-surface)' }}>
           <div>
             <h1 className="font-extrabold text-white text-lg">Doctor Dashboard</h1>
@@ -146,6 +142,5 @@ export default function DoctorDashboard() {
           </div>
         </main>
       </div>
-    </div>
-  );
+    );
 }

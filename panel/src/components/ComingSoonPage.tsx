@@ -4,7 +4,6 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Construction, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import PanelSidebar from '@/components/PanelSidebar';
 
 interface ComingSoonPageProps {
   title: string;
@@ -14,9 +13,7 @@ interface ComingSoonPageProps {
 
 export default function ComingSoonPage({ title, description, icon: Icon }: ComingSoonPageProps) {
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <PanelSidebar role="super_admin" userName="Vikram Singh" />
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header
           className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0"
           style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'var(--bg-surface)' }}
@@ -72,7 +69,6 @@ export default function ComingSoonPage({ title, description, icon: Icon }: Comin
             </div>
           </motion.div>
         </main>
-      </div>
     </div>
   );
 }

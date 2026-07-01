@@ -3,7 +3,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { CreditCard, TrendingUp, CheckCircle2, Clock, XCircle, Download } from 'lucide-react';
-import PanelSidebar from '@/components/PanelSidebar';
 
 const PAYMENTS = [
   { id: 'PAY001', patient: 'Rahul Sharma', doctor: 'Dr. Kiran Mehta',  dept: 'Cardiology',  date: 'Jun 18, 2026', amount: 1500, platform: 150, hospital: 1350, method: 'UPI',        status: 'Settled' },
@@ -25,9 +24,7 @@ export default function HospitalPaymentsPage() {
   const pending = PAYMENTS.filter(p => p.status === 'Pending').reduce((a, p) => a + p.hospital, 0);
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <PanelSidebar role="hospital" userName="Apollo Hospitals" />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
           <div>
             <h1 className="font-extrabold text-lg" style={{ color: 'var(--text-primary)' }}>Payments</h1>
@@ -95,6 +92,5 @@ export default function HospitalPaymentsPage() {
           </div>
         </main>
       </div>
-    </div>
-  );
+    );
 }

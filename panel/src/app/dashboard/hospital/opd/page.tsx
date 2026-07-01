@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Clock, Edit2, Save, CheckCircle2, Plus, Trash2 } from 'lucide-react';
-import PanelSidebar from '@/components/PanelSidebar';
 
 const INIT_OPD = [
   { id: 1, dept: 'Cardiology',      doctor: 'Dr. Kiran Mehta',    days: 'Mon–Fri',    start: '09:00 AM', end: '05:00 PM', slots: 20, booked: 14, status: 'Open' },
@@ -24,9 +23,7 @@ export default function HospitalOPDPage() {
   const [editing, setEditing] = useState<number | null>(null);
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <PanelSidebar role="hospital" userName="Apollo Hospitals" />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
           <div>
             <h1 className="font-extrabold text-lg" style={{ color: 'var(--text-primary)' }}>OPD Timings</h1>
@@ -118,6 +115,5 @@ export default function HospitalOPDPage() {
           </div>
         </main>
       </div>
-    </div>
-  );
+    );
 }

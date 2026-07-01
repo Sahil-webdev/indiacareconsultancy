@@ -3,7 +3,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { DollarSign, TrendingUp, Calendar, ArrowUpRight, Download, CreditCard } from 'lucide-react';
-import PanelSidebar from '@/components/PanelSidebar';
 
 const EARNINGS = [
   { id: 'PAY001', patient: 'Rahul Sharma',  date: 'Jun 18, 2026', type: 'Clinic',  fee: 1500, platform: 150, net: 1350, status: 'Settled' },
@@ -33,9 +32,7 @@ export default function DoctorEarningsPage() {
   const maxAmt   = Math.max(...MONTHLY.map(m => m.amt));
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <PanelSidebar role="doctor" userName="Dr. Ramesh Kumar" />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
           <div>
             <h1 className="font-extrabold text-lg" style={{ color: 'var(--text-primary)' }}>Earnings</h1>
@@ -128,6 +125,5 @@ export default function DoctorEarningsPage() {
           </div>
         </main>
       </div>
-    </div>
-  );
+    );
 }

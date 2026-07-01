@@ -6,7 +6,6 @@ import {
   Stethoscope, Calendar, BarChart2, MapPin, Star,
   BadgeCheck, Bell, TrendingUp, Users, Clock, ArrowRight
 } from 'lucide-react';
-import PanelSidebar from '@/components/PanelSidebar';
 
 const DOCTORS_LIST = [
   { name: 'Dr. Ramesh Kumar',   speciality: 'Cardiology',   rating: 4.9, appointments: 12, status: 'Active' },
@@ -26,10 +25,7 @@ const DEPARTMENTS = [
 
 export default function HospitalDashboard() {
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <PanelSidebar role="hospital" userName="Apollo Delhi" />
-
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'var(--bg-surface)' }}>
           <div>
             <h1 className="font-extrabold text-white text-lg">Hospital Dashboard</h1>
@@ -171,6 +167,5 @@ export default function HospitalDashboard() {
           </div>
         </main>
       </div>
-    </div>
-  );
+    );
 }

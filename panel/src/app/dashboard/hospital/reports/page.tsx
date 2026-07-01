@@ -3,7 +3,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { BarChart2, TrendingUp, Users, Calendar, Star, Stethoscope, ArrowUpRight } from 'lucide-react';
-import PanelSidebar from '@/components/PanelSidebar';
 
 const SPECIALITY = [
   { name: 'Cardiology',  apts: 84, revenue: 126000, pct: 95, rating: 4.9 },
@@ -27,9 +26,7 @@ const maxApts = Math.max(...MONTHLY.map(m => m.apts));
 
 export default function HospitalReportsPage() {
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <PanelSidebar role="hospital" userName="Apollo Hospitals" />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
           <div>
             <h1 className="font-extrabold text-lg" style={{ color: 'var(--text-primary)' }}>Reports</h1>
@@ -157,6 +154,5 @@ export default function HospitalReportsPage() {
           </motion.div>
         </main>
       </div>
-    </div>
-  );
+    );
 }

@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, CheckCircle2, Clock, XCircle, Eye, Video, Building2 } from 'lucide-react';
-import PanelSidebar from '@/components/PanelSidebar';
 
 const APPOINTMENTS = [
   { id: 'APT001', patient: 'Rahul Sharma',  doctor: 'Dr. Kiran Mehta',  speciality: 'Cardiology',  date: 'Jun 20, 2026', time: '10:00 AM', mode: 'Clinic', status: 'Confirmed', fee: 1500 },
@@ -26,9 +25,7 @@ export default function HospitalAppointmentsPage() {
   const filtered = APPOINTMENTS.filter(a => statusFilter ? a.status === statusFilter : true);
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <PanelSidebar role="hospital" userName="Apollo Hospitals" />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
           <div>
             <h1 className="font-extrabold text-lg" style={{ color: 'var(--text-primary)' }}>Appointments</h1>
@@ -111,6 +108,5 @@ export default function HospitalAppointmentsPage() {
           </div>
         </main>
       </div>
-    </div>
-  );
+    );
 }

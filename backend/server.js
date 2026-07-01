@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./src/config/db');
+const { connectMySQL } = require('./src/config/mysql');
 const { errorHandler, notFound } = require('./src/middleware/errorHandler');
 
 // ── Routes
@@ -15,6 +16,9 @@ const app = express();
 
 // ── Connect to MongoDB
 connectDB();
+
+// ── Connect to MySQL
+connectMySQL();
 
 // ── CORS
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim());

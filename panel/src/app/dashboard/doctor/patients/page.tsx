@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Search, Eye, Phone, MapPin, Calendar, Heart, FileText } from 'lucide-react';
-import PanelSidebar from '@/components/PanelSidebar';
 
 const PATIENTS = [
   { id: 1, name: 'Rahul Sharma',  age: 34, gender: 'Male',   phone: '+91 98765 43299', city: 'Delhi',     lastVisit: 'Jun 18, 2026', visits: 4,  diagnosis: 'Hypertension',     status: 'Active' },
@@ -29,9 +28,7 @@ export default function DoctorPatientsPage() {
   );
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <PanelSidebar role="doctor" userName="Dr. Ramesh Kumar" />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
           <div>
             <h1 className="font-extrabold text-lg" style={{ color: 'var(--text-primary)' }}>My Patients</h1>
@@ -113,6 +110,5 @@ export default function DoctorPatientsPage() {
           </div>
         </main>
       </div>
-    </div>
-  );
+    );
 }

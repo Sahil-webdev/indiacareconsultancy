@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import {
   Calendar, CheckCircle2, Clock, XCircle, Eye, Video, Building2, User, Phone, Filter, Search
 } from 'lucide-react';
-import PanelSidebar from '@/components/PanelSidebar';
 
 const APPOINTMENTS = [
   { id: 'APT001', patient: 'Rahul Sharma',  age: 34, phone: '+91 98765 43299', date: 'Jun 20, 2026', time: '10:00 AM', mode: 'Clinic', status: 'Confirmed', reason: 'Chest pain & breathlessness', fee: 1500 },
@@ -33,9 +32,7 @@ export default function DoctorAppointmentsPage() {
   );
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <PanelSidebar role="doctor" userName="Dr. Ramesh Kumar" />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
           <div>
             <h1 className="font-extrabold text-lg" style={{ color: 'var(--text-primary)' }}>My Appointments</h1>
@@ -131,6 +128,5 @@ export default function DoctorAppointmentsPage() {
           </div>
         </main>
       </div>
-    </div>
-  );
+    );
 }

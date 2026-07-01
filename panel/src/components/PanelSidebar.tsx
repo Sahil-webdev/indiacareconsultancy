@@ -102,6 +102,7 @@ const SUPER_ADMIN_NAV: NavSection[] = [
       { label: 'Refunds',               icon: Receipt,     href: '/dashboard/super-admin/refunds' },
       { label: 'Invoices',              icon: FileText,    href: '/dashboard/super-admin/invoices' },
       { label: 'Coupons & Discounts',   icon: Tag,         href: '/dashboard/super-admin/coupons' },
+      { label: 'Homepage Spotlight',    icon: Sparkles,    href: '/dashboard/super-admin/spotlight' },
     ],
   },
   {
@@ -163,13 +164,14 @@ const NAV_ITEMS: Record<Exclude<Role, 'super_admin'>, NavItem[]> = {
     { label: 'Promote Profile', icon: Sparkles,      href: '/dashboard/doctor/promote' },
   ],
   hospital: [
-    { label: 'Dashboard',    icon: LayoutDashboard, href: '/dashboard/hospital' },
-    { label: 'Doctors',      icon: Stethoscope,     href: '/dashboard/hospital/doctors' },
-    { label: 'Appointments', icon: Calendar,        href: '/dashboard/hospital/appointments' },
-    { label: 'OPD Timings',  icon: FileText,        href: '/dashboard/hospital/opd' },
-    { label: 'Reports',      icon: BarChart2,       href: '/dashboard/hospital/reports' },
-    { label: 'Payments',     icon: CreditCard,      href: '/dashboard/hospital/payments' },
-    { label: 'Promote Profile', icon: Sparkles,      href: '/dashboard/hospital/promote' },
+    { label: 'Dashboard',       icon: LayoutDashboard, href: '/dashboard/hospital' },
+    { label: 'My Profile',      icon: UserCheck,       href: '/dashboard/hospital/profile' },
+    { label: 'Doctors',         icon: Stethoscope,     href: '/dashboard/hospital/doctors' },
+    { label: 'Appointments',    icon: Calendar,        href: '/dashboard/hospital/appointments' },
+    { label: 'OPD Timings',     icon: FileText,        href: '/dashboard/hospital/opd' },
+    { label: 'Reports',         icon: BarChart2,       href: '/dashboard/hospital/reports' },
+    { label: 'Payments',        icon: CreditCard,      href: '/dashboard/hospital/payments' },
+    { label: 'Promote Profile', icon: Sparkles,        href: '/dashboard/hospital/promote' },
   ],
 };
 

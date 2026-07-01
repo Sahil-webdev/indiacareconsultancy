@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, CheckCircle2, XCircle, Save } from 'lucide-react';
-import PanelSidebar from '@/components/PanelSidebar';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -44,9 +43,7 @@ export default function DoctorAvailabilityPage() {
   const activeDays = Object.values(avail).filter(d => d.active).length;
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <PanelSidebar role="doctor" userName="Dr. Ramesh Kumar" />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
           <div>
             <h1 className="font-extrabold text-lg" style={{ color: 'var(--text-primary)' }}>Availability</h1>
@@ -128,6 +125,5 @@ export default function DoctorAvailabilityPage() {
           </div>
         </main>
       </div>
-    </div>
-  );
+    );
 }

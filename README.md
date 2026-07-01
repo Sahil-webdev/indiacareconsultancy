@@ -8,20 +8,41 @@ A full-stack healthcare platform built as a monorepo with 3 independent apps.
 icc/
 ├── client/      → Patient-facing website    (Next.js 16, React 19, TailwindCSS)
 ├── panel/       → Admin & Staff panel       (Next.js, Doctor / Hospital / Consultant dashboards)
-└── backend/     → REST API server           (Node.js, Express.js, MongoDB / Mongoose)
+└── backend/     → REST API server           (Node.js, Express.js, MongoDB / Mongoose + MySQL setup scripts)
 ```
 
 ---
 
 ## 🚀 Running Locally
 
-### 1. Backend (Port 5000)
+### 1. Backend (Port 5001)
 ```bash
 cd backend
 cp .env.example .env      # Fill in MONGODB_URI and JWT_SECRET
 npm install
 npm run dev
 ```
+
+### 1A. MySQL Database + Tables Setup
+If you want to create the ICC MySQL schema and tables automatically:
+
+```bash
+cd backend
+npm install
+npm run mysql:init
+```
+
+This script reads the following variables from `backend/.env`:
+
+```env
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_DATABASE=icc
+```
+
+Note: the existing backend routes still use MongoDB/Mongoose right now. The MySQL script creates the database and tables so your relational setup is ready, but the API has not yet been migrated from MongoDB queries to MySQL queries.
 
 ### 2. Client / Website (Port 3000)
 ```bash
@@ -46,7 +67,7 @@ npm run dev
 |---|---|---|
 | Website | http://localhost:3000 | https://www.indiacareconsultancy.com |
 | Panel | http://localhost:3001 | https://panel.indiacareconsultancy.com |
-| Backend API | http://localhost:5000 | https://api.indiacareconsultancy.com |
+| Backend API | http://localhost:5001 | https://api.indiacareconsultancy.com |
 
 ---
 
@@ -56,23 +77,29 @@ npm run dev
 ```env
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_PANEL_URL=http://localhost:3001
-NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_API_URL=http://localhost:5001
 ```
 
 ### `panel/.env.local`
 ```env
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_PANEL_URL=http://localhost:3001
-NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_API_URL=http://localhost:5001
 ```
 
 ### `backend/.env`
 ```env
-PORT=5000
+PORT=5001
 MONGODB_URI=mongodb://localhost:27017/icc
 JWT_SECRET=your_strong_secret_here
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 NODE_ENV=development
+
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_DATABASE=icc
 ```
 
 ---
@@ -84,4 +111,4 @@ NODE_ENV=development
 | Frontend (client) | Next.js 16, React 19, TailwindCSS 4, Framer Motion |
 | Admin Panel | Next.js 16, React 19, TailwindCSS 4 |
 | Backend API | Node.js, Express.js 4, JWT Auth |
-| Database | MongoDB + Mongoose |
+| Database | MongoDB + Mongoose, MySQL init script |

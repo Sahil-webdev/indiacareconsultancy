@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { panelApi } from '@/lib/api';
+import { saveSession } from '@/lib/session';
 import {
   Heart, Lock, Mail, Eye, EyeOff, ShieldCheck,
   ChevronDown, LogIn, AlertCircle, CheckCircle2,
@@ -17,8 +19,6 @@ const ROLES: { value: Role; label: string; icon: React.ElementType; color: strin
   { value: 'doctor',      label: 'Doctor',       icon: Stethoscope, color: 'text-sky-400',     email: 'ramesh.kumar@indiacare.com', desc: 'Appointments & patient care' },
   { value: 'hospital',    label: 'Hospital',     icon: Building2,   color: 'text-emerald-400', email: 'contact@apollo-delhi.com', desc: 'Department & doctor management' },
 ];
-
-const MOCK_PASSWORD = 'password123';
 
 export default function PanelLoginPage() {
   const router = useRouter();
@@ -40,26 +40,33 @@ export default function PanelLoginPage() {
     setError('');
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (!email || !password) { setError('Please enter your email and password.'); return; }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      if (password !== MOCK_PASSWORD) {
-        setError('Invalid credentials. Use password123 for demo.');
-        return;
-      }
+    try {
+      const login = await panelApi<{ success: boolean; token: string; user: { id: string; name: string; email: string; role: Role } }>('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+      const me = await panelApi<{ success: boolean; user: { id: string; name: string; email: string; role: Role; profile?: { entityId: string; isSubscribed: boolean; isApproved: boolean } | null } }>('/api/auth/me', {
+        headers: { Authorization: `Bearer ${login.token}` },
+      });
+      saveSession(login.token, me.user);
       setSuccess(true);
       setTimeout(() => {
-        if (role === 'super_admin') router.push('/dashboard/super-admin');
-        else if (role === 'consultant') router.push('/dashboard/consultant');
-        else if (role === 'doctor') router.push('/dashboard/doctor');
-        else if (role === 'hospital') router.push('/dashboard/hospital');
-      }, 1000);
-    }, 1200);
+        if (me.user.role === 'super_admin') router.push('/dashboard/super-admin');
+        else if (me.user.role === 'consultant') router.push('/dashboard/consultant');
+        else if (me.user.role === 'doctor') router.push('/dashboard/doctor');
+        else if (me.user.role === 'hospital') router.push('/dashboard/hospital');
+      }, 800);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Login failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

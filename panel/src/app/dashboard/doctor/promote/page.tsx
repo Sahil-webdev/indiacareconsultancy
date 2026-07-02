@@ -1,28 +1,60 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles, Star, Eye, TrendingUp, CreditCard, Smartphone,
-  Globe, CheckCircle2, Clock, Shield, Loader2, Zap,
-  CalendarDays, X, BadgeCheck, ArrowRight, IndianRupee,
+  Globe, Shield, Loader2, Zap, CalendarDays, X, BadgeCheck, ArrowRight,
 } from 'lucide-react';
+import { useDoctorIdentity } from '@/lib/panelIdentity';
 
 const SPOTLIGHT_FEE = 999; // ₹/30 days — managed by super admin
-const MOCK_DOCTOR = {
-  name: 'Dr. Ramesh Kumar',
-  speciality: 'Senior Cardiologist',
-  experience: 18,
-  city: 'New Delhi',
-  fee: 1500,
-  rating: 4.9,
-  reviews: 127,
-};
 
 type PayMethod = 'upi' | 'card' | 'netbanking';
 type Step = 'info' | 'payment' | 'success';
+type PromoState = {
+  daysLeft: number;
+  tagline: string;
+  paidAt: number;
+  endsAt: number;
+};
 
-function HeroPreview({ tagline, active }: { tagline: string; active?: boolean }) {
+function getStoredDoctorPromo(): PromoState | null {
+  if (typeof window === 'undefined') return null;
+  const promo = localStorage.getItem('icc_doctor_promoted');
+  if (!promo) return null;
+
+  const data = JSON.parse(promo) as { paidAt: number; tagline: string };
+  const paidAt = Number(data.paidAt || Date.now());
+  const endsAt = paidAt + 30 * 24 * 60 * 60 * 1000;
+  const daysLeft = Math.max(0, 30 - Math.floor((Date.now() - paidAt) / (1000 * 60 * 60 * 24)));
+
+  if (daysLeft <= 0) {
+    localStorage.removeItem('icc_doctor_promoted');
+    return null;
+  }
+
+  return { daysLeft, tagline: data.tagline, paidAt, endsAt };
+}
+
+function HeroPreview({
+  tagline,
+  active,
+  doctor,
+  initial,
+}: {
+  tagline: string;
+  active?: boolean;
+  doctor: {
+    name: string;
+    speciality: string;
+    experience: number;
+    city: string;
+    fee: number;
+    rating: number;
+  };
+  initial: string;
+}) {
   return (
     <div className="relative rounded-2xl overflow-hidden p-5"
       style={{ background: 'linear-gradient(135deg, rgba(18,122,106,0.25) 0%, rgba(7,94,82,0.3) 100%)', border: '1px solid rgba(37,184,154,0.25)' }}>
@@ -35,19 +67,19 @@ function HeroPreview({ tagline, active }: { tagline: string; active?: boolean })
       <p className="text-[9px] font-bold uppercase tracking-wider mb-2" style={{ color: '#25B89A' }}>Website Hero Preview</p>
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-black text-lg flex-shrink-0">
-          R
+          {initial}
         </div>
         <div>
-          <p className="font-extrabold text-sm" style={{ color: 'var(--text-primary)' }}>{MOCK_DOCTOR.name}</p>
-          <p className="text-[11px]" style={{ color: '#25B89A' }}>{MOCK_DOCTOR.speciality} · {MOCK_DOCTOR.experience} yrs exp · {MOCK_DOCTOR.city}</p>
-          <p className="text-[11px] italic mt-0.5" style={{ color: '#94A3B8' }}>"{tagline}"</p>
+          <p className="font-extrabold text-sm" style={{ color: 'var(--text-primary)' }}>{doctor.name}</p>
+          <p className="text-[11px]" style={{ color: '#25B89A' }}>{doctor.speciality} · {doctor.experience} yrs exp · {doctor.city}</p>
+          <p className="text-[11px] italic mt-0.5" style={{ color: '#94A3B8' }}>&ldquo;{tagline}&rdquo;</p>
         </div>
       </div>
       <div className="flex items-center gap-3 mt-3">
         <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400">
-          <Star className="w-3 h-3 fill-amber-400" /> {MOCK_DOCTOR.rating} ({MOCK_DOCTOR.reviews} reviews)
+          <Star className="w-3 h-3 fill-amber-400" /> {doctor.rating.toFixed(1)} (127 reviews)
         </span>
-        <span className="text-[10px]" style={{ color: '#64748B' }}>₹{MOCK_DOCTOR.fee.toLocaleString('en-IN')} consultation fee</span>
+        <span className="text-[10px]" style={{ color: '#64748B' }}>₹{doctor.fee.toLocaleString('en-IN')} consultation fee</span>
         <BadgeCheck className="w-3.5 h-3.5 text-emerald-400" />
       </div>
     </div>
@@ -55,6 +87,7 @@ function HeroPreview({ tagline, active }: { tagline: string; active?: boolean })
 }
 
 export default function DoctorPromotePage() {
+  const { profile, displayName, initial } = useDoctorIdentity();
   const [step, setStep] = useState<Step>('info');
   const [tagline, setTagline] = useState('Leading Senior Cardiologist · 18+ Years Expert · AIIMS Alumnus');
   const [payMethod, setPayMethod] = useState<PayMethod>('upi');
@@ -62,29 +95,28 @@ export default function DoctorPromotePage() {
   const [card, setCard] = useState({ number: '', expiry: '', cvv: '', name: '' });
   const [bank, setBank] = useState('SBI');
   const [processing, setProcessing] = useState(false);
-  const [activePromo, setActivePromo] = useState<{ daysLeft: number; tagline: string } | null>(null);
-
-  // Check if currently promoted (localStorage for demo)
-  useEffect(() => {
-    const promo = localStorage.getItem('icc_doctor_promoted');
-    if (promo) {
-      const data = JSON.parse(promo);
-      const daysLeft = Math.max(0, 30 - Math.floor((Date.now() - data.paidAt) / (1000 * 60 * 60 * 24)));
-      if (daysLeft > 0) setActivePromo({ daysLeft, tagline: data.tagline });
-      else { localStorage.removeItem('icc_doctor_promoted'); }
-    }
-  }, []);
+  const [activePromo, setActivePromo] = useState<PromoState | null>(() => getStoredDoctorPromo());
+  const doctor = {
+    name: displayName,
+    speciality: profile?.speciality || 'Specialist',
+    experience: profile?.experience || 0,
+    city: profile?.location || 'Location pending',
+    fee: profile?.consultationFee || 0,
+    rating: profile?.rating || 0,
+  };
 
   const handlePay = async () => {
     if (payMethod === 'upi' && !upiId.trim()) return;
     if (payMethod === 'card' && (!card.number || !card.expiry || !card.cvv)) return;
     setProcessing(true);
     await new Promise(r => setTimeout(r, 2500));
+    const paidAt = Date.now();
+    const endsAt = paidAt + 30 * 24 * 60 * 60 * 1000;
     // Save to localStorage (in production: POST to API → super admin spotlight page updates)
-    localStorage.setItem('icc_doctor_promoted', JSON.stringify({ paidAt: Date.now(), tagline }));
+    localStorage.setItem('icc_doctor_promoted', JSON.stringify({ paidAt, tagline }));
     setProcessing(false);
     setStep('success');
-    setActivePromo({ daysLeft: 30, tagline });
+    setActivePromo({ daysLeft: 30, tagline, paidAt, endsAt });
   };
 
   const cancelPromo = () => {
@@ -112,7 +144,7 @@ export default function DoctorPromotePage() {
           <div className="max-w-2xl mx-auto space-y-5">
 
             {/* Live preview */}
-            <HeroPreview tagline={activePromo.tagline} active />
+            <HeroPreview tagline={activePromo.tagline} active doctor={doctor} initial={initial} />
 
             {/* Days remaining card */}
             <div className="panel-card p-5">
@@ -179,7 +211,7 @@ export default function DoctorPromotePage() {
                 Get Featured on the Homepage
               </h2>
               <p className="text-sm max-w-md mx-auto" style={{ color: '#94A3B8' }}>
-                Appear at the top of the ICC website's hero section — the first thing thousands of patients see. Drive more profile views, leads, and consultations.
+                Appear at the top of the ICC website&apos;s hero section - the first thing thousands of patients see. Drive more profile views, leads, and consultations.
               </p>
               <div className="flex items-center justify-center gap-2 mt-4">
                 <span className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>₹{SPOTLIGHT_FEE}</span>
@@ -222,7 +254,7 @@ export default function DoctorPromotePage() {
             </div>
 
             {/* Preview */}
-            <HeroPreview tagline={tagline} />
+            <HeroPreview tagline={tagline} doctor={doctor} initial={initial} />
 
             {/* CTA */}
             <button onClick={() => setStep('payment')}
@@ -379,6 +411,8 @@ export default function DoctorPromotePage() {
   }
 
   // ── STEP: SUCCESS ────────────────────────────────────────────────────────────
+  const promoDetails = activePromo ?? { daysLeft: 0, tagline, paidAt: 0, endsAt: 0 };
+
   return (
     <div className="flex-1 flex items-center justify-center p-6 min-w-0">
       <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
@@ -389,15 +423,15 @@ export default function DoctorPromotePage() {
           <Sparkles className="w-10 h-10 text-amber-400" />
         </motion.div>
         <div>
-          <h2 className="text-2xl font-extrabold mb-2" style={{ color: 'var(--text-primary)' }}>You're Spotlighted! 🎉</h2>
+          <h2 className="text-2xl font-extrabold mb-2" style={{ color: 'var(--text-primary)' }}>You&apos;re Spotlighted! 🎉</h2>
           <p className="text-sm" style={{ color: '#94A3B8' }}>
             Your profile is now live in the ICC website hero section. Patients will see you first for the next <strong style={{ color: '#f59e0b' }}>30 days</strong>.
           </p>
         </div>
         <div className="w-full panel-card p-4 text-left space-y-2">
           {[
-            { label: 'Spotlight started', value: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) },
-            { label: 'Spotlight ends', value: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) },
+            { label: 'Spotlight started', value: new Date(promoDetails.paidAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) },
+            { label: 'Spotlight ends', value: new Date(promoDetails.endsAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) },
             { label: 'Amount paid', value: `₹${SPOTLIGHT_FEE}` },
           ].map((r, i) => (
             <div key={i} className="flex items-center justify-between text-xs">

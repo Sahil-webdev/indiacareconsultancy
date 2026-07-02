@@ -1,5 +1,18 @@
+'use client';
+
 import PanelSettingsPage from '@/components/PanelSettingsPage';
+import { useDoctorIdentity } from '@/lib/panelIdentity';
 
 export default function DoctorSettings() {
-  return <PanelSettingsPage role="doctor" userName="Dr. Ramesh Kumar" userEmail="dr.ramesh@apollo.com" userPhone="+91 98100 11111" />;
+  const { displayName, displayEmail, displayPhone } = useDoctorIdentity();
+
+  return (
+    <PanelSettingsPage
+      key={`${displayName}-${displayEmail}-${displayPhone}`}
+      role="doctor"
+      userName={displayName}
+      userEmail={displayEmail}
+      userPhone={displayPhone}
+    />
+  );
 }

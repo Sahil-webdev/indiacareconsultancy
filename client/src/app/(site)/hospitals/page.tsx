@@ -10,7 +10,8 @@ import {
   BadgeCheck, ArrowRight, SlidersHorizontal, Zap,
   ChevronLeft
 } from 'lucide-react';
-import { INITIAL_HOSPITALS, INITIAL_DOCTORS } from '@/lib/mockData';
+import { HospitalMock, DoctorMock, INITIAL_HOSPITALS, INITIAL_DOCTORS } from '@/lib/mockData';
+import { siteApi } from '@/lib/api';
 
 /* ─── Animated Counter ─── */
 function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
@@ -211,8 +212,8 @@ function HospitalCard({ hosp, index, docCount }: { hosp: typeof INITIAL_HOSPITAL
 }
 
 /* ─── Featured Carousel ─── */
-function FeaturedCarousel() {
-  const featured = INITIAL_HOSPITALS.filter(h => h.subscriptionPlan === 'Premium');
+function FeaturedCarousel({ hospitals }: { hospitals: HospitalMock[] }) {
+  const featured = hospitals.filter(h => h.subscriptionPlan === 'Premium');
   const [idx, setIdx] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setIdx(i => (i + 1) % featured.length), 4500);
@@ -317,26 +318,42 @@ function HospitalsPageContent() {
   const [heroLocation, setHeroLocation] = useState('');
   const [heroDept, setHeroDept] = useState(querySpeciality);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [hospitals, setHospitals] = useState(INITIAL_HOSPITALS);
+  const [doctors, setDoctors] = useState(INITIAL_DOCTORS);
 
-  const locationsList = useMemo(() => Array.from(new Set(INITIAL_HOSPITALS.map(h => h.location))), []);
-  const deptList = useMemo(() => {
-    const s = new Set<string>();
-    INITIAL_HOSPITALS.forEach(h => h.departments.forEach(d => s.add(d)));
-    return Array.from(s);
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [hospitalRes, doctorRes] = await Promise.all([
+          siteApi<{ hospitals: HospitalMock[] }>('/api/hospitals'),
+          siteApi<{ doctors: DoctorMock[] }>('/api/doctors'),
+        ]);
+        if (hospitalRes.hospitals?.length) setHospitals(hospitalRes.hospitals);
+        if (doctorRes.doctors?.length) setDoctors(doctorRes.doctors);
+      } catch {}
+    }
+    loadData();
   }, []);
 
-  const filtered = useMemo(() => INITIAL_HOSPITALS.filter(h => {
+  const locationsList = useMemo(() => Array.from(new Set(hospitals.map(h => h.location))), [hospitals]);
+  const deptList = useMemo(() => {
+    const s = new Set<string>();
+    hospitals.forEach(h => h.departments.forEach(d => s.add(d)));
+    return Array.from(s);
+  }, [hospitals]);
+
+  const filtered = useMemo(() => hospitals.filter(h => {
     if (searchTerm && !h.name.toLowerCase().includes(searchTerm.toLowerCase()) && !h.address.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (selectedLocation && h.location !== selectedLocation) return false;
     if (selectedDept && !h.departments.includes(selectedDept)) return false;
     if (selectedFacility && !h.facilities.some(f => f.toLowerCase().includes(selectedFacility.toLowerCase()))) return false;
     if (selectedType && h.subscriptionPlan !== selectedType) return false;
     return true;
-  }), [searchTerm, selectedLocation, selectedDept, selectedFacility, selectedType]);
+  }), [hospitals, searchTerm, selectedLocation, selectedDept, selectedFacility, selectedType]);
 
   const clearFilters = () => { setSearchTerm(''); setSelectedLocation(''); setSelectedDept(''); setSelectedFacility(''); setSelectedType(''); };
   const activeCount = [selectedLocation, selectedDept, selectedFacility, selectedType].filter(Boolean).length;
-  const getDocCount = (id: string) => INITIAL_DOCTORS.filter(d => d.hospitalId === id).length;
+  const getDocCount = (id: string) => doctors.filter(d => d.hospitalId === id).length;
 
   const handleHeroSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -511,7 +528,7 @@ function HospitalsPageContent() {
       </section>
 
       {/* ══ FEATURED CAROUSEL ══ */}
-      <FeaturedCarousel />
+      <FeaturedCarousel hospitals={hospitals} />
 
       {/* ══ CTA ══ */}
       <section className="py-16 bg-white">

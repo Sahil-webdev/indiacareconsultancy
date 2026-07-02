@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { startTransition, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -25,7 +25,7 @@ import {
   Trash2,
   UploadCloud,
 } from 'lucide-react';
-import { DoctorMock, HospitalMock } from '@/lib/mockData';
+import { siteApi } from '@/lib/api';
 
 /* ─────────────────────────────────────────
    Types
@@ -135,20 +135,22 @@ export default function BookingModal({ doctor, isOpen, onClose }: Props) {
   // Reset form when modal opens for a new doctor
   useEffect(() => {
     if (isOpen) {
-      setForm({
-        patientName: '',
-        mobile: '',
-        age: '',
-        gender: '',
-        appointmentDate: '',
-        timeSlot: '',
-        reason: '',
-        mode: 'Clinic Visit',
+      startTransition(() => {
+        setForm({
+          patientName: '',
+          mobile: '',
+          age: '',
+          gender: '',
+          appointmentDate: '',
+          timeSlot: '',
+          reason: '',
+          mode: 'Clinic Visit',
+        });
+        setErrors({});
+        setSubmitted(false);
+        setSubmitting(false);
+        setReportFiles([]);
       });
-      setErrors({});
-      setSubmitted(false);
-      setSubmitting(false);
-      setReportFiles([]);
     }
   }, [isOpen, doctor?.id]);
 
@@ -194,21 +196,18 @@ export default function BookingModal({ doctor, isOpen, onClose }: Props) {
 
     setSubmitting(true);
 
-    // TODO: Integrate with backend API — e.g.:
-    // await fetch('/api/appointments', { method: 'POST', body: JSON.stringify({ doctorId: doctor.id, ...form }) });
-
-    // Simulated delay
-    await new Promise(res => setTimeout(res, 1200));
-
-    // Save to local state (in-memory only)
-    const booking = {
-      id: `booking_${Date.now()}`,
-      doctorId: doctor.id,
-      doctorName: doctor.name,
-      ...form,
-      createdAt: new Date().toISOString(),
-    };
-    console.log('[BookingModal] Booking created (local state):', booking);
+    await siteApi('/api/appointments', {
+      method: 'POST',
+      body: JSON.stringify({
+        doctorId: doctor.id,
+        patientName: form.patientName,
+        patientPhone: form.mobile,
+        patientEmail: '',
+        appointmentDate: form.appointmentDate,
+        timeSlot: form.timeSlot,
+        concern: form.reason,
+      }),
+    });
 
     setSubmitting(false);
     setSubmitted(true);

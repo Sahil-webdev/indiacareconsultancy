@@ -1,5 +1,18 @@
+'use client';
+
 import PanelSettingsPage from '@/components/PanelSettingsPage';
+import { useHospitalIdentity } from '@/lib/panelIdentity';
 
 export default function HospitalSettings() {
-  return <PanelSettingsPage role="hospital" userName="Apollo Hospitals" userEmail="admin@apollohospitals.com" userPhone="+91 11 2692 5858" />;
+  const { displayName, displayEmail, displayPhone } = useHospitalIdentity();
+
+  return (
+    <PanelSettingsPage
+      key={`${displayName}-${displayEmail}-${displayPhone}`}
+      role="hospital"
+      userName={displayName}
+      userEmail={displayEmail}
+      userPhone={displayPhone}
+    />
+  );
 }

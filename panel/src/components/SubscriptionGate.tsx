@@ -4,11 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import {
-  Stethoscope, CheckCircle2, CreditCard, Smartphone,
-  Globe, Loader2, ShieldCheck, Lock, X,
+  CheckCircle2, CreditCard, Smartphone,
+  Globe, Loader2, ShieldCheck, Lock,
 } from 'lucide-react';
+import { panelApi } from '@/lib/api';
+import { getSessionUser, saveSession, getSessionToken } from '@/lib/session';
 
-const PLAN_AMOUNT = 300; // ₹/month — synced with super admin subscriptions page
+const PLAN_AMOUNT = 300;
 
 const PLAN_FEATURES = [
   'Verified profile on ICC website',
@@ -33,26 +35,54 @@ export default function SubscriptionGate({ children }: SubscriptionGateProps) {
   const [bank, setBank] = useState('SBI');
   const [processing, setProcessing] = useState(false);
   const [paid, setPaid] = useState(false);
+  const [planAmount, setPlanAmount] = useState(PLAN_AMOUNT);
 
   useEffect(() => {
-    // Check subscription status from localStorage (replace with API call in production)
-    const status = localStorage.getItem('icc_doctor_subscribed');
-    setSubscribed(status === 'true');
+    async function loadStatus() {
+      const user = getSessionUser();
+      if (!user?.profile?.entityId) {
+        setSubscribed(false);
+        return;
+      }
+      setSubscribed(user.profile.isSubscribed);
+      try {
+        const plans = await panelApi<{ plans: Array<{ plan_key: string; amount: number }> }>('/api/subscriptions');
+        const doctorPlan = plans.plans.find((plan) => plan.plan_key === 'doctor');
+        if (doctorPlan) setPlanAmount(Number(doctorPlan.amount));
+      } catch {}
+    }
+    loadStatus();
   }, []);
 
   const handlePay = async () => {
     // Basic validation
     if (payMethod === 'upi' && !upiId.trim()) return;
     if (payMethod === 'card' && (!card.number || !card.expiry || !card.cvv)) return;
-
     setProcessing(true);
-    // Simulate payment processing
-    await new Promise(r => setTimeout(r, 2500));
-    localStorage.setItem('icc_doctor_subscribed', 'true');
-    setPaid(true);
-    await new Promise(r => setTimeout(r, 1800));
-    setSubscribed(true);
-    setProcessing(false);
+    try {
+      const user = getSessionUser();
+      const token = getSessionToken();
+      if (!user?.profile?.entityId || !token) throw new Error('Please login again');
+      await panelApi('/api/subscriptions/activate', {
+        method: 'POST',
+        body: JSON.stringify({
+          entityType: 'doctor',
+          entityId: user.profile.entityId,
+          amount: planAmount,
+          paymentMethod: payMethod.toUpperCase(),
+          transactionRef: `${payMethod}-${Date.now()}`,
+        }),
+      });
+      const updatedUser = { ...user, profile: { ...user.profile, isSubscribed: true } };
+      saveSession(token, updatedUser);
+      setPaid(true);
+      await new Promise((r) => setTimeout(r, 1200));
+      setSubscribed(true);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   // Still loading subscription status
@@ -108,14 +138,14 @@ export default function SubscriptionGate({ children }: SubscriptionGateProps) {
 
               <div>
                 <div className="flex items-end gap-2 mb-1">
-                  <span className="text-4xl font-extrabold" style={{ color: 'var(--text-primary)' }}>₹{PLAN_AMOUNT}</span>
+                  <span className="text-4xl font-extrabold" style={{ color: 'var(--text-primary)' }}>₹{planAmount}</span>
                   <span className="text-sm font-semibold mb-1.5" style={{ color: '#64748B' }}>/month</span>
                 </div>
                 <p className="text-xs" style={{ color: '#94A3B8' }}>Doctor Membership Plan · Billed monthly</p>
               </div>
 
               <div className="flex-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider mb-3" style={{ color: '#25B89A' }}>What's Included</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-3" style={{ color: '#25B89A' }}>What&apos;s Included</p>
                 <ul className="space-y-2.5">
                   {PLAN_FEATURES.map((f, i) => (
                     <li key={i} className="flex items-start gap-2.5 text-xs" style={{ color: '#94A3B8' }}>
@@ -136,7 +166,7 @@ export default function SubscriptionGate({ children }: SubscriptionGateProps) {
             <div className="p-8 flex flex-col gap-5" style={{ background: 'var(--bg-surface)' }}>
               <div>
                 <h2 className="text-xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Activate Your Plan</h2>
-                <p className="text-xs mt-1" style={{ color: '#64748B' }}>Pay ₹{PLAN_AMOUNT} to unlock your doctor panel</p>
+                <p className="text-xs mt-1" style={{ color: '#64748B' }}>Pay ₹{planAmount} to unlock your doctor panel</p>
               </div>
 
               {/* Payment Method Tabs */}

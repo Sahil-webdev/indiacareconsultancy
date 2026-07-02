@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Settings, Bell, Shield, Moon, Sun, Globe, Key, Trash2,
+  Settings, Bell, Moon, Sun, Globe, Key, Trash2,
   CheckCircle2, User, Phone, Mail, Lock, Eye, EyeOff, Save
 } from 'lucide-react';
 import PanelSidebar from '@/components/PanelSidebar';

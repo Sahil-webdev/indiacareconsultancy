@@ -1,8 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const connectDB = require('./src/config/db');
 const { connectMySQL } = require('./src/config/mysql');
+const { ensureSeedData } = require('./src/services/seedDemoData');
 const { errorHandler, notFound } = require('./src/middleware/errorHandler');
 
 // ── Routes
@@ -11,14 +11,10 @@ const doctorRoutes   = require('./src/routes/doctors');
 const hospitalRoutes = require('./src/routes/hospitals');
 const leadRoutes     = require('./src/routes/leads');
 const promoteRoutes  = require('./src/routes/promote');
+const appointmentRoutes = require('./src/routes/appointments');
+const subscriptionRoutes = require('./src/routes/subscriptions');
 
 const app = express();
-
-// ── Connect to MongoDB
-connectDB();
-
-// ── Connect to MySQL
-connectMySQL();
 
 // ── CORS
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim());
@@ -44,6 +40,8 @@ app.use('/api/auth',      authRoutes);
 app.use('/api/doctors',   doctorRoutes);
 app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/leads',     leadRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/promote',   promoteRoutes);
 
 // ── 404 & Error handlers
@@ -52,8 +50,18 @@ app.use(errorHandler);
 
 // ── Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`\n🚀 ICC Backend running on http://localhost:${PORT}`);
-  console.log(`   Environment : ${process.env.NODE_ENV}`);
-  console.log(`   Health check: http://localhost:${PORT}/api/health\n`);
+
+async function startServer() {
+  await connectMySQL();
+  await ensureSeedData();
+  app.listen(PORT, () => {
+    console.log(`\n🚀 ICC Backend running on http://localhost:${PORT}`);
+    console.log(`   Environment : ${process.env.NODE_ENV}`);
+    console.log(`   Health check: http://localhost:${PORT}/api/health\n`);
+  });
+}
+
+startServer().catch((error) => {
+  console.error(`❌ ICC backend failed to start: ${error.message}`);
+  process.exit(1);
 });

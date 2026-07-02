@@ -1,28 +1,59 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles, Star, Eye, TrendingUp, CreditCard, Smartphone,
-  Globe, CheckCircle2, Shield, Loader2, Zap,
+  Globe, Shield, Loader2, Zap,
   CalendarDays, X, BadgeCheck, ArrowRight, Building2,
 } from 'lucide-react';
+import { useHospitalIdentity } from '@/lib/panelIdentity';
 
 const SPOTLIGHT_FEE = 1499; // ₹/30 days — managed by super admin
-const MOCK_HOSPITAL = {
-  name: 'Apollo Hospital Indraprastha',
-  type: 'Multispeciality',
-  departments: 52,
-  city: 'New Delhi',
-  rating: 4.8,
-  reviews: 312,
-  beds: 710,
-};
 
 type PayMethod = 'upi' | 'card' | 'netbanking';
 type Step = 'info' | 'payment' | 'success';
+type PromoState = {
+  daysLeft: number;
+  tagline: string;
+  paidAt: number;
+  endsAt: number;
+};
 
-function HeroPreview({ tagline, active }: { tagline: string; active?: boolean }) {
+function getStoredHospitalPromo(): PromoState | null {
+  if (typeof window === 'undefined') return null;
+  const promo = localStorage.getItem('icc_hospital_promoted');
+  if (!promo) return null;
+
+  const data = JSON.parse(promo) as { paidAt: number; tagline: string };
+  const paidAt = Number(data.paidAt || Date.now());
+  const endsAt = paidAt + 30 * 24 * 60 * 60 * 1000;
+  const daysLeft = Math.max(0, 30 - Math.floor((Date.now() - paidAt) / (1000 * 60 * 60 * 24)));
+
+  if (daysLeft <= 0) {
+    localStorage.removeItem('icc_hospital_promoted');
+    return null;
+  }
+
+  return { daysLeft, tagline: data.tagline, paidAt, endsAt };
+}
+
+function HeroPreview({
+  tagline,
+  active,
+  hospital,
+}: {
+  tagline: string;
+  active?: boolean;
+  hospital: {
+    name: string;
+    type: string;
+    departments: number;
+    city: string;
+    rating: number;
+    beds: number;
+  };
+}) {
   return (
     <div className="relative rounded-2xl overflow-hidden p-5"
       style={{ background: 'linear-gradient(135deg, rgba(109,40,217,0.2) 0%, rgba(139,92,246,0.15) 100%)', border: '1px solid rgba(139,92,246,0.25)' }}>
@@ -38,14 +69,14 @@ function HeroPreview({ tagline, active }: { tagline: string; active?: boolean })
           <Building2 className="w-6 h-6 text-white" />
         </div>
         <div>
-          <p className="font-extrabold text-sm" style={{ color: 'var(--text-primary)' }}>{MOCK_HOSPITAL.name}</p>
-          <p className="text-[11px]" style={{ color: '#a78bfa' }}>{MOCK_HOSPITAL.type} · {MOCK_HOSPITAL.departments} Departments · {MOCK_HOSPITAL.city}</p>
-          <p className="text-[11px] italic mt-0.5" style={{ color: '#94A3B8' }}>"{tagline}"</p>
+          <p className="font-extrabold text-sm" style={{ color: 'var(--text-primary)' }}>{hospital.name}</p>
+          <p className="text-[11px]" style={{ color: '#a78bfa' }}>{hospital.type} · {hospital.departments} Departments · {hospital.city}</p>
+          <p className="text-[11px] italic mt-0.5" style={{ color: '#94A3B8' }}>&ldquo;{tagline}&rdquo;</p>
         </div>
       </div>
       <div className="flex items-center gap-3 mt-3">
-        <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400"><Star className="w-3 h-3 fill-amber-400" /> {MOCK_HOSPITAL.rating} ({MOCK_HOSPITAL.reviews} reviews)</span>
-        <span className="text-[10px]" style={{ color: '#64748B' }}>{MOCK_HOSPITAL.beds} beds · 24/7 Emergency</span>
+        <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400"><Star className="w-3 h-3 fill-amber-400" /> {hospital.rating.toFixed(1)} (312 reviews)</span>
+        <span className="text-[10px]" style={{ color: '#64748B' }}>{hospital.beds} beds · 24/7 Emergency</span>
         <BadgeCheck className="w-3.5 h-3.5 text-emerald-400" />
       </div>
     </div>
@@ -53,6 +84,7 @@ function HeroPreview({ tagline, active }: { tagline: string; active?: boolean })
 }
 
 export default function HospitalPromotePage() {
+  const { profile, displayName } = useHospitalIdentity();
   const [step, setStep] = useState<Step>('info');
   const [tagline, setTagline] = useState('World-Class Multispeciality Care & Premier Clinical Excellence');
   const [payMethod, setPayMethod] = useState<PayMethod>('upi');
@@ -60,27 +92,27 @@ export default function HospitalPromotePage() {
   const [card, setCard] = useState({ number: '', expiry: '', cvv: '', name: '' });
   const [bank, setBank] = useState('SBI');
   const [processing, setProcessing] = useState(false);
-  const [activePromo, setActivePromo] = useState<{ daysLeft: number; tagline: string } | null>(null);
-
-  useEffect(() => {
-    const promo = localStorage.getItem('icc_hospital_promoted');
-    if (promo) {
-      const data = JSON.parse(promo);
-      const daysLeft = Math.max(0, 30 - Math.floor((Date.now() - data.paidAt) / (1000*60*60*24)));
-      if (daysLeft > 0) setActivePromo({ daysLeft, tagline: data.tagline });
-      else localStorage.removeItem('icc_hospital_promoted');
-    }
-  }, []);
+  const [activePromo, setActivePromo] = useState<PromoState | null>(() => getStoredHospitalPromo());
+  const hospital = {
+    name: displayName,
+    type: profile?.hospitalType || 'Hospital',
+    departments: profile?.departments.length || 0,
+    city: profile?.location || 'Location pending',
+    rating: profile?.rating || 0,
+    beds: profile?.totalBeds || 0,
+  };
 
   const handlePay = async () => {
     if (payMethod === 'upi' && !upiId.trim()) return;
     if (payMethod === 'card' && (!card.number || !card.expiry || !card.cvv)) return;
     setProcessing(true);
     await new Promise(r => setTimeout(r, 2500));
-    localStorage.setItem('icc_hospital_promoted', JSON.stringify({ paidAt: Date.now(), tagline }));
+    const paidAt = Date.now();
+    const endsAt = paidAt + 30 * 24 * 60 * 60 * 1000;
+    localStorage.setItem('icc_hospital_promoted', JSON.stringify({ paidAt, tagline }));
     setProcessing(false);
     setStep('success');
-    setActivePromo({ daysLeft: 30, tagline });
+    setActivePromo({ daysLeft: 30, tagline, paidAt, endsAt });
   };
 
   // ── ACTIVE VIEW ──
@@ -101,7 +133,7 @@ export default function HospitalPromotePage() {
         </header>
         <main className="flex-1 overflow-y-auto panel-scroll p-6">
           <div className="max-w-2xl mx-auto space-y-5">
-            <HeroPreview tagline={activePromo.tagline} active />
+            <HeroPreview tagline={activePromo.tagline} active hospital={hospital} />
             <div className="panel-card p-5">
               <div className="flex items-center justify-between mb-3">
                 <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Spotlight Duration</p>
@@ -158,7 +190,7 @@ export default function HospitalPromotePage() {
               </div>
               <h2 className="text-xl font-extrabold mb-2" style={{ color: 'var(--text-primary)' }}>Get Your Hospital Featured</h2>
               <p className="text-sm max-w-md mx-auto" style={{ color: '#94A3B8' }}>
-                Appear at the top of the ICC website's hero section — the first thing thousands of patients see. Drive more inquiries, admissions, and OPD visits.
+                Appear at the top of the ICC website&apos;s hero section - the first thing thousands of patients see. Drive more inquiries, admissions, and OPD visits.
               </p>
               <div className="flex items-center justify-center gap-2 mt-4">
                 <span className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>₹{SPOTLIGHT_FEE}</span>
@@ -198,7 +230,7 @@ export default function HospitalPromotePage() {
               <p className="text-[10px] text-right" style={{ color: '#475569' }}>{tagline.length}/80</p>
             </div>
 
-            <HeroPreview tagline={tagline} />
+            <HeroPreview tagline={tagline} hospital={hospital} />
 
             <button onClick={() => setStep('payment')}
               className="w-full py-4 rounded-2xl text-sm font-extrabold flex items-center justify-center gap-2 text-white"
@@ -312,6 +344,8 @@ export default function HospitalPromotePage() {
   }
 
   // ── SUCCESS ──
+  const promoDetails = activePromo ?? { daysLeft: 0, tagline, paidAt: 0, endsAt: 0 };
+
   return (
     <div className="flex-1 flex items-center justify-center p-6 min-w-0">
       <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
@@ -327,8 +361,8 @@ export default function HospitalPromotePage() {
         </div>
         <div className="w-full panel-card p-4 text-left space-y-2">
           {[
-            { label: 'Spotlight started', value: new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) },
-            { label: 'Spotlight ends', value: new Date(Date.now()+30*24*60*60*1000).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) },
+            { label: 'Spotlight started', value: new Date(promoDetails.paidAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) },
+            { label: 'Spotlight ends', value: new Date(promoDetails.endsAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) },
             { label: 'Amount paid', value: `₹${SPOTLIGHT_FEE}` },
           ].map((r,i) => (
             <div key={i} className="flex items-center justify-between text-xs">

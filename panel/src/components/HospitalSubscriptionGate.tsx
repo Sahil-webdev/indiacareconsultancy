@@ -4,11 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import {
-  Building2, CheckCircle2, CreditCard, Smartphone,
-  Globe, Loader2, ShieldCheck, Lock, Clock, Check,
+  CheckCircle2, CreditCard, Smartphone,
+  Globe, Loader2, ShieldCheck, Lock,
 } from 'lucide-react';
+import { panelApi } from '@/lib/api';
+import { getSessionToken, getSessionUser, saveSession } from '@/lib/session';
 
-const PLAN_AMOUNT = 500; // ₹/month — synced with super admin subscriptions page
+const PLAN_AMOUNT = 500;
 
 const PLAN_FEATURES = [
   'Verified hospital listing on ICC website',
@@ -30,22 +32,51 @@ export default function HospitalSubscriptionGate({ children }: { children: React
   const [bank, setBank] = useState('SBI');
   const [processing, setProcessing] = useState(false);
   const [paid, setPaid] = useState(false);
+  const [planAmount, setPlanAmount] = useState(PLAN_AMOUNT);
 
   useEffect(() => {
-    const status = localStorage.getItem('icc_hospital_subscribed');
-    setSubscribed(status === 'true');
+    async function loadStatus() {
+      const user = getSessionUser();
+      if (!user?.profile?.entityId) {
+        setSubscribed(false);
+        return;
+      }
+      setSubscribed(user.profile.isSubscribed);
+      try {
+        const plans = await panelApi<{ plans: Array<{ plan_key: string; amount: number }> }>('/api/subscriptions');
+        const hospitalPlan = plans.plans.find((plan) => plan.plan_key === 'hospital');
+        if (hospitalPlan) setPlanAmount(Number(hospitalPlan.amount));
+      } catch {}
+    }
+    loadStatus();
   }, []);
 
   const handlePay = async () => {
     if (payMethod === 'upi' && !upiId.trim()) return;
     if (payMethod === 'card' && (!card.number || !card.expiry || !card.cvv)) return;
     setProcessing(true);
-    await new Promise(r => setTimeout(r, 2500));
-    localStorage.setItem('icc_hospital_subscribed', 'true');
-    setPaid(true);
-    await new Promise(r => setTimeout(r, 1800));
-    setSubscribed(true);
-    setProcessing(false);
+    try {
+      const user = getSessionUser();
+      const token = getSessionToken();
+      if (!user?.profile?.entityId || !token) throw new Error('Please login again');
+      await panelApi('/api/subscriptions/activate', {
+        method: 'POST',
+        body: JSON.stringify({
+          entityType: 'hospital',
+          entityId: user.profile.entityId,
+          amount: planAmount,
+          paymentMethod: payMethod.toUpperCase(),
+          transactionRef: `${payMethod}-${Date.now()}`,
+        }),
+      });
+      const updatedUser = { ...user, profile: { ...user.profile, isSubscribed: true } };
+      saveSession(token, updatedUser);
+      setPaid(true);
+      await new Promise((r) => setTimeout(r, 1200));
+      setSubscribed(true);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   if (subscribed === null) {
@@ -96,14 +127,14 @@ export default function HospitalSubscriptionGate({ children }: { children: React
 
               <div>
                 <div className="flex items-end gap-2 mb-1">
-                  <span className="text-4xl font-extrabold" style={{ color: 'var(--text-primary)' }}>₹{PLAN_AMOUNT}</span>
+                  <span className="text-4xl font-extrabold" style={{ color: 'var(--text-primary)' }}>₹{planAmount}</span>
                   <span className="text-sm font-semibold mb-1.5" style={{ color: '#64748B' }}>/month</span>
                 </div>
                 <p className="text-xs" style={{ color: '#94A3B8' }}>Hospital Partnership Plan · Billed monthly</p>
               </div>
 
               <div className="flex-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider mb-3" style={{ color: '#a78bfa' }}>What's Included</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-3" style={{ color: '#a78bfa' }}>What&apos;s Included</p>
                 <ul className="space-y-2.5">
                   {PLAN_FEATURES.map((f, i) => (
                     <li key={i} className="flex items-start gap-2.5 text-xs" style={{ color: '#94A3B8' }}>
@@ -124,7 +155,7 @@ export default function HospitalSubscriptionGate({ children }: { children: React
             <div className="p-8 flex flex-col gap-5" style={{ background: 'var(--bg-surface)' }}>
               <div>
                 <h2 className="text-xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Activate Hospital Panel</h2>
-                <p className="text-xs mt-1" style={{ color: '#64748B' }}>Pay ₹{PLAN_AMOUNT} to unlock your dashboard</p>
+                <p className="text-xs mt-1" style={{ color: '#64748B' }}>Pay ₹{planAmount} to unlock your dashboard</p>
               </div>
 
               {/* Payment Method Tabs */}

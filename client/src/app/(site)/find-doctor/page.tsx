@@ -27,8 +27,9 @@ import {
   ChevronLeft,
   MessageSquare
 } from 'lucide-react';
-import { INITIAL_DOCTORS, INITIAL_HOSPITALS } from '@/lib/mockData';
+import { DoctorMock, HospitalMock, INITIAL_DOCTORS, INITIAL_HOSPITALS } from '@/lib/mockData';
 import BookingModal, { BookingDoctor } from '@/components/BookingModal';
+import { siteApi } from '@/lib/api';
 
 /* ─────────────────────────────────────────
    Filter Chip Config
@@ -402,8 +403,8 @@ function DoctorCard({ doc, index, selectedLocation, selectedFeeRange, hospitalNa
 /* ─────────────────────────────────────────
    Featured Doctors Carousel
 ───────────────────────────────────────── */
-function FeaturedCarousel({ onBook }: { onBook: (doc: BookingDoctor) => void }) {
-  const featured = INITIAL_DOCTORS.filter(d => d.subscriptionPlan === 'Elite' || d.rating >= 4.8).slice(0, 5);
+function FeaturedCarousel({ doctors, onBook }: { doctors: DoctorMock[]; onBook: (doc: BookingDoctor) => void }) {
+  const featured = doctors.filter(d => d.subscriptionPlan === 'Elite' || d.rating >= 4.8).slice(0, 5);
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
@@ -543,7 +544,7 @@ function FeaturedCarousel({ onBook }: { onBook: (doc: BookingDoctor) => void }) 
 /* ─────────────────────────────────────────
    Related Hospitals
 ───────────────────────────────────────── */
-function RelatedHospitals() {
+function RelatedHospitals({ hospitals }: { hospitals: HospitalMock[] }) {
   return (
     <section className="py-16 bg-light-grey">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -560,7 +561,7 @@ function RelatedHospitals() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {INITIAL_HOSPITALS.slice(0, 3).map((hosp, i) => (
+          {hospitals.slice(0, 3).map((hosp, i) => (
             <motion.div
               key={hosp.id}
               initial={{ opacity: 0, y: 20 }}
@@ -634,6 +635,8 @@ function FindDoctorPageContent() {
   const [heroSearchLocation, setHeroSearchLocation] = useState(initialLocation);
   const [heroSearchBudget, setHeroSearchBudget] = useState(initialBudget);
   const [heroSearchGender, setHeroSearchGender] = useState('');
+  const [doctors, setDoctors] = useState(INITIAL_DOCTORS);
+  const [hospitals, setHospitals] = useState(INITIAL_HOSPITALS);
 
   // ── Booking Modal State ──
   const [bookingDoctor, setBookingDoctor] = useState<BookingDoctor | null>(null);
@@ -648,8 +651,22 @@ function FindDoctorPageContent() {
     setIsBookingOpen(false);
   }, []);
 
-  const specialitiesList = useMemo(() => Array.from(new Set(INITIAL_DOCTORS.map(d => d.speciality))), []);
-  const locationsList = useMemo(() => Array.from(new Set(INITIAL_DOCTORS.map(d => d.location))), []);
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [doctorRes, hospitalRes] = await Promise.all([
+          siteApi<{ doctors: DoctorMock[] }>('/api/doctors'),
+          siteApi<{ hospitals: HospitalMock[] }>('/api/hospitals'),
+        ]);
+        if (doctorRes.doctors?.length) setDoctors(doctorRes.doctors);
+        if (hospitalRes.hospitals?.length) setHospitals(hospitalRes.hospitals);
+      } catch {}
+    }
+    loadData();
+  }, []);
+
+  const specialitiesList = useMemo(() => Array.from(new Set(doctors.map(d => d.speciality))), [doctors]);
+  const locationsList = useMemo(() => Array.from(new Set(doctors.map(d => d.location))), [doctors]);
 
   const handleHeroSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -662,7 +679,7 @@ function FindDoctorPageContent() {
   };
 
   const filteredDoctors = useMemo(() => {
-    return INITIAL_DOCTORS.filter((doc) => {
+    return doctors.filter((doc) => {
       if (searchTerm) {
         const q = searchTerm.toLowerCase();
         if (!doc.name.toLowerCase().includes(q) && !(doc.bio?.toLowerCase().includes(q)) && !doc.qualification.toLowerCase().includes(q)) return false;
@@ -688,7 +705,7 @@ function FindDoctorPageContent() {
       if (selectedRating && doc.rating < parseFloat(selectedRating)) return false;
       return true;
     });
-  }, [searchTerm, selectedSpeciality, selectedLocation, selectedGender, selectedConsultationType, selectedExperience, selectedFeeRange, selectedRating]);
+  }, [doctors, searchTerm, selectedSpeciality, selectedLocation, selectedGender, selectedConsultationType, selectedExperience, selectedFeeRange, selectedRating]);
 
   const clearFilters = () => {
     setSearchTerm(''); setSelectedSpeciality(''); setSelectedLocation('');
@@ -698,7 +715,7 @@ function FindDoctorPageContent() {
 
   const getHospitalName = (hospId?: string) => {
     if (!hospId) return 'Private Clinic';
-    return INITIAL_HOSPITALS.find(h => h.id === hospId)?.name || 'Partner Hospital';
+    return hospitals.find(h => h.id === hospId)?.name || 'Partner Hospital';
   };
 
   const activeFilterCount = [selectedLocation, selectedExperience, selectedFeeRange, selectedGender, selectedConsultationType, selectedRating].filter(Boolean).length;
@@ -1019,12 +1036,12 @@ function FindDoctorPageContent() {
       {/* ═══════════════════════════════════════
           SECTION 5 — FEATURED DOCTORS CAROUSEL
       ═══════════════════════════════════════ */}
-      <FeaturedCarousel onBook={handleBookDoctor} />
+      <FeaturedCarousel doctors={doctors} onBook={handleBookDoctor} />
 
       {/* ═══════════════════════════════════════
           SECTION 6 — RELATED HOSPITALS
       ═══════════════════════════════════════ */}
-      <RelatedHospitals />
+      <RelatedHospitals hospitals={hospitals} />
 
       {/* ═══════════════════════════════════════
           SECTION 7 — HELP CHOOSING CTA

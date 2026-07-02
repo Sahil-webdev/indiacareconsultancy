@@ -45,7 +45,7 @@ export default function Header() {
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-6">
+          <div className="flex items-center justify-between lg:grid lg:grid-cols-[auto_1fr_auto] lg:items-center lg:gap-6">
 
             {/* ── LEFT: Logo – lives in its own column, can be any size ── */}
             <Link href="/" className="flex items-center group shrink-0">
@@ -120,7 +120,7 @@ export default function Header() {
             </div>
 
             {/* Mobile Right Controls */}
-            <div className="flex items-center gap-2 lg:hidden">
+            <div className="ml-auto flex items-center gap-2 lg:hidden">
               {isLoggedIn && patient && (
                 <button
                   onClick={() => router.push('/my-health')}

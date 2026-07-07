@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { HospitalMock, DoctorMock, INITIAL_HOSPITALS, INITIAL_DOCTORS } from '@/lib/mockData';
 import { siteApi } from '@/lib/api';
+import HospitalBookingModal from '@/components/HospitalBookingModal';
 
 /* ─── Animated Counter ─── */
 function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
@@ -109,7 +110,7 @@ function Chip({ def, value, onChange }: {
 }
 
 /* ─── Hospital Card ─── */
-function HospitalCard({ hosp, index, docCount }: { hosp: typeof INITIAL_HOSPITALS[0]; index: number; docCount: number }) {
+function HospitalCard({ hosp, index, docCount, onBook }: { hosp: typeof INITIAL_HOSPITALS[0]; index: number; docCount: number; onBook: (h: HospitalMock) => void }) {
   const isPremium = hosp.subscriptionPlan === 'Premium';
   const hasEmergency = hosp.facilities.some(f => f.toLowerCase().includes('emergency'));
   const hasICU = hosp.facilities.some(f => f.toLowerCase().includes('icu'));
@@ -201,10 +202,11 @@ function HospitalCard({ hosp, index, docCount }: { hosp: typeof INITIAL_HOSPITAL
             className="flex items-center justify-center gap-1.5 text-xs font-bold text-primary-green border border-primary-green/20 bg-soft-green py-2.5 rounded-xl hover:bg-light-mint transition-colors">
             View Profile <ArrowRight className="w-3 h-3" />
           </Link>
-          <Link href="/book-consultation"
-            className="flex items-center justify-center gap-1.5 text-xs font-bold text-white gradient-primary py-2.5 rounded-xl shadow-sm glow-green">
+          <button
+            onClick={() => onBook(hosp)}
+            className="flex items-center justify-center gap-1.5 text-xs font-bold text-white gradient-primary py-2.5 rounded-xl shadow-sm glow-green cursor-pointer">
             <PhoneCall className="w-3 h-3" /> Book Now
-          </Link>
+          </button>
         </div>
       </div>
     </motion.div>
@@ -212,7 +214,7 @@ function HospitalCard({ hosp, index, docCount }: { hosp: typeof INITIAL_HOSPITAL
 }
 
 /* ─── Featured Carousel ─── */
-function FeaturedCarousel({ hospitals }: { hospitals: HospitalMock[] }) {
+function FeaturedCarousel({ hospitals, onBook }: { hospitals: HospitalMock[]; onBook: (h: HospitalMock) => void }) {
   const featured = hospitals.filter(h => h.subscriptionPlan === 'Premium');
   const [idx, setIdx] = useState(0);
   useEffect(() => {
@@ -286,10 +288,11 @@ function FeaturedCarousel({ hospitals }: { hospitals: HospitalMock[] }) {
                   className="flex items-center gap-2 text-sm font-bold text-white border border-white/20 bg-white/10 px-6 py-3 rounded-xl hover:bg-white/20 transition-colors">
                   View Profile <ArrowRight className="w-4 h-4" />
                 </Link>
-                <Link href="/book-consultation"
-                  className="flex items-center gap-2 text-sm font-bold text-white gradient-primary px-6 py-3 rounded-xl shadow-md glow-green">
+                <button
+                  onClick={() => onBook(h)}
+                  className="flex items-center gap-2 text-sm font-bold text-white gradient-primary px-6 py-3 rounded-xl shadow-md glow-green cursor-pointer">
                   <PhoneCall className="w-4 h-4" /> Book via ICC
-                </Link>
+                </button>
               </div>
             </div>
           </motion.div>
@@ -320,6 +323,19 @@ function HospitalsPageContent() {
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [hospitals, setHospitals] = useState(INITIAL_HOSPITALS);
   const [doctors, setDoctors] = useState(INITIAL_DOCTORS);
+
+  // Hospital booking state
+  const [bookingHospital, setBookingHospital] = useState<HospitalMock | null>(null);
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
+
+  const handleBookHospital = (h: HospitalMock) => {
+    setBookingHospital(h);
+    setIsBookingOpen(true);
+  };
+
+  const handleCloseBooking = () => {
+    setIsBookingOpen(false);
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -521,14 +537,14 @@ function HospitalsPageContent() {
             </motion.div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filtered.map((h, i) => <HospitalCard key={h.id} hosp={h} index={i} docCount={getDocCount(h.id)} />)}
+              {filtered.map((h, i) => <HospitalCard key={h.id} hosp={h} index={i} docCount={getDocCount(h.id)} onBook={handleBookHospital} />)}
             </div>
           )}
         </div>
       </section>
 
       {/* ══ FEATURED CAROUSEL ══ */}
-      <FeaturedCarousel hospitals={hospitals} />
+      <FeaturedCarousel hospitals={hospitals} onBook={handleBookHospital} />
 
       {/* ══ CTA ══ */}
       <section className="py-16 bg-white">
@@ -604,6 +620,9 @@ function HospitalsPageContent() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Hospital Booking Modal */}
+      <HospitalBookingModal hospital={bookingHospital} isOpen={isBookingOpen} onClose={handleCloseBooking} />
     </div>
   );
 }

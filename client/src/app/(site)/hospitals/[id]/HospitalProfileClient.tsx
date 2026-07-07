@@ -11,6 +11,7 @@ import {
   Ear, ShieldAlert, Flame, Wind, Microscope, Ambulance
 } from 'lucide-react';
 import { HospitalMock, mockDB } from '@/lib/mockData';
+import HospitalBookingModal from '@/components/HospitalBookingModal';
 
 interface Props { hospital: HospitalMock; }
 
@@ -83,6 +84,9 @@ const INSURERS = ['Star Health', 'HDFC ERGO', 'Max Bupa', 'New India', 'Niva Bup
 export default function HospitalProfileClient({ hospital }: Props) {
   const [doctorIdx, setDoctorIdx] = useState(0);
   const [relatedIdx, setRelatedIdx] = useState(0);
+
+  // Hospital booking state
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
 
   const linkedDoctors = mockDB.doctors.filter(d => d.hospitalId === hospital.id);
   const relatedHospitals = mockDB.hospitals.filter(h => h.id !== hospital.id && h.location === hospital.location).slice(0, 3);
@@ -268,10 +272,11 @@ export default function HospitalProfileClient({ hospital }: Props) {
                   </div>
 
                   <div className="flex flex-col gap-2.5">
-                    <Link href="/book-consultation"
-                      className="flex items-center justify-center gap-2 text-sm font-bold text-white gradient-primary py-3.5 px-6 rounded-xl shadow-lg glow-green hover-lift">
+                    <button
+                      onClick={() => setIsBookingOpen(true)}
+                      className="flex items-center justify-center gap-2 text-sm font-bold text-white gradient-primary py-3.5 px-6 rounded-xl shadow-lg glow-green hover-lift cursor-pointer w-full">
                       <PhoneCall className="w-4 h-4" /> Book Appointment
-                    </Link>
+                    </button>
                     <Link href="/book-consultation"
                       className="flex items-center justify-center gap-2 text-sm font-bold text-primary-green border-2 border-primary-green/20 bg-soft-green py-3 px-6 rounded-xl hover:bg-light-mint transition-colors">
                       <MessageSquare className="w-4 h-4" /> Talk to Consultant
@@ -740,10 +745,11 @@ export default function HospitalProfileClient({ hospital }: Props) {
       {/* ══ STICKY MOBILE BAR ══ */}
       <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white/95 backdrop-blur-lg border-t border-slate-100 px-4 py-3">
         <div className="flex gap-3 max-w-lg mx-auto">
-          <Link href="/book-consultation"
-            className="flex-1 flex items-center justify-center gap-2 text-sm font-bold text-white gradient-primary py-3.5 rounded-xl shadow-lg glow-green">
+          <button
+            onClick={() => setIsBookingOpen(true)}
+            className="flex-1 flex items-center justify-center gap-2 text-sm font-bold text-white gradient-primary py-3.5 rounded-xl shadow-lg glow-green cursor-pointer">
             <PhoneCall className="w-4 h-4" /> Book Appointment
-          </Link>
+          </button>
           <Link href="/book-consultation"
             className="flex items-center justify-center gap-2 text-sm font-bold text-primary-green border-2 border-primary-green/20 bg-soft-green px-4 py-3.5 rounded-xl">
             <MessageSquare className="w-4 h-4" />
@@ -753,6 +759,9 @@ export default function HospitalProfileClient({ hospital }: Props) {
 
       {/* Bottom padding for mobile bar */}
       <div className="h-20 lg:hidden" />
+
+      {/* Hospital Booking Modal */}
+      <HospitalBookingModal hospital={hospital} isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
     </div>
   );
 }

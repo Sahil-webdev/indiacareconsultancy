@@ -11,7 +11,8 @@ import {
   BadgeCheck, Zap, TrendingUp, MessageSquare, ChevronDown, ChevronLeft,
   Globe, Award, Lock
 } from 'lucide-react';
-import { INITIAL_DOCTORS, INITIAL_HOSPITALS, INITIAL_SPECIALITIES } from '@/lib/mockData';
+import { INITIAL_DOCTORS, INITIAL_HOSPITALS, INITIAL_SPECIALITIES, HospitalMock } from '@/lib/mockData';
+import HospitalBookingModal from '@/components/HospitalBookingModal';
 
 /* ─────────────────────────────────────────────────────
    ANIMATED COUNTER
@@ -428,6 +429,15 @@ export default function Homepage() {
   const featuredDoctors = INITIAL_DOCTORS.filter(d => d.isApproved).slice(0, 4);
   const featuredHospitals = INITIAL_HOSPITALS.filter(h => h.subscriptionPlan === 'Premium').slice(0, 3);
   const locations = Array.from(new Set(INITIAL_DOCTORS.map(d => d.location)));
+
+  // Hospital booking modal state
+  const [bookingHospital, setBookingHospital] = useState<HospitalMock | null>(null);
+  const [isHospBookingOpen, setIsHospBookingOpen] = useState(false);
+
+  const handleBookHospital = (h: HospitalMock) => {
+    setBookingHospital(h);
+    setIsHospBookingOpen(true);
+  };
 
   const faqs = [
     { q: 'What is India Care Consultancy?', a: 'India Care Consultancy is a premium healthcare guidance platform that helps patients find verified doctors, trusted hospitals, and personalised medical recommendations based on their specific needs, location, budget, and preferences.' },
@@ -889,10 +899,11 @@ export default function Homepage() {
                       className="flex-1 text-center text-[11px] font-bold text-primary-green border border-primary-green/20 bg-soft-green py-2.5 rounded-xl hover:bg-light-mint transition-colors">
                       View Hospital
                     </Link>
-                    <Link href="/book-consultation"
-                      className="flex-1 text-center text-[11px] font-bold text-white gradient-primary py-2.5 rounded-xl shadow-sm glow-green">
+                    <button
+                      onClick={() => handleBookHospital(hosp)}
+                      className="flex-1 text-center text-[11px] font-bold text-white gradient-primary py-2.5 rounded-xl shadow-sm glow-green cursor-pointer">
                       Request Appt.
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -1172,6 +1183,9 @@ export default function Homepage() {
 
       {/* Mobile bottom spacing */}
       <div className="h-20 lg:hidden" />
+
+      {/* Hospital Booking Modal */}
+      <HospitalBookingModal hospital={bookingHospital} isOpen={isHospBookingOpen} onClose={() => setIsHospBookingOpen(false)} />
     </div>
   );
 }

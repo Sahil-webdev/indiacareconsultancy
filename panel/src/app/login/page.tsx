@@ -1,44 +1,70 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { panelApi } from '@/lib/api';
-import { saveSession } from '@/lib/session';
+import { clearSession, getSessionToken, getSessionUser, saveSession } from '@/lib/session';
 import {
   Heart, Lock, Mail, Eye, EyeOff, ShieldCheck,
-  ChevronDown, LogIn, AlertCircle, CheckCircle2,
-  Users, Stethoscope, Building2, Crown, ExternalLink
+  LogIn, AlertCircle, CheckCircle2, Loader2,
+  Users, Stethoscope, Building2, Crown
 } from 'lucide-react';
 
 type Role = 'super_admin' | 'consultant' | 'doctor' | 'hospital';
 
-const ROLES: { value: Role; label: string; icon: React.ElementType; color: string; email: string; desc: string }[] = [
-  { value: 'super_admin', label: 'Super Admin',  icon: Crown,       color: 'text-amber-400',   email: 'admin@indiacare.com',      desc: 'Full platform control & analytics' },
-  { value: 'consultant',  label: 'Consultant',   icon: Users,       color: 'text-violet-400',  email: 'consultant@indiacare.com', desc: 'Patient management & referrals' },
-  { value: 'doctor',      label: 'Doctor',       icon: Stethoscope, color: 'text-sky-400',     email: 'ramesh.kumar@indiacare.com', desc: 'Appointments & patient care' },
-  { value: 'hospital',    label: 'Hospital',     icon: Building2,   color: 'text-emerald-400', email: 'contact@apollo-delhi.com', desc: 'Department & doctor management' },
+const ROLES: { value: Role; label: string; icon: React.ElementType; color: string; desc: string }[] = [
+  { value: 'super_admin', label: 'Super Admin',  icon: Crown,       color: 'text-amber-400',   desc: 'Full platform control & analytics' },
+  { value: 'consultant',  label: 'Consultant',   icon: Users,       color: 'text-violet-400',  desc: 'Patient management & referrals' },
+  { value: 'doctor',      label: 'Doctor',       icon: Stethoscope, color: 'text-sky-400',     desc: 'Appointments & patient care' },
+  { value: 'hospital',    label: 'Hospital',     icon: Building2,   color: 'text-emerald-400', desc: 'Department & doctor management' },
 ];
 
 export default function PanelLoginPage() {
   const router = useRouter();
-  const [role, setRole] = useState<Role>('super_admin');
-  const [email, setEmail] = useState('admin@indiacare.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [roleOpen, setRoleOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const selectedRole = ROLES.find(r => r.value === role)!;
+  useEffect(() => {
+    let active = true;
 
-  const handleRoleSelect = (r: typeof ROLES[0]) => {
-    setRole(r.value);
-    setEmail(r.email);
-    setRoleOpen(false);
-    setError('');
-  };
+    const getDashboardPath = (role: Role) => {
+      if (role === 'super_admin') return '/dashboard/super-admin';
+      if (role === 'consultant') return '/dashboard/consultant';
+      if (role === 'doctor') return '/dashboard/doctor';
+      return '/dashboard/hospital';
+    };
+
+    async function checkSession() {
+      const token = getSessionToken();
+      const user = getSessionUser();
+
+      if (!token || !user) {
+        if (active) setCheckingSession(false);
+        return;
+      }
+
+      try {
+        const response = await panelApi<{ success: boolean; user: { role: Role } }>('/api/auth/me');
+        if (!active) return;
+        router.replace(getDashboardPath(response.user.role));
+      } catch {
+        clearSession();
+        if (active) setCheckingSession(false);
+      }
+    }
+
+    checkSession();
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +94,14 @@ export default function PanelLoginPage() {
       setLoading(false);
     }
   };
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #060C14 0%, #0E1623 50%, #0A1620 100%)' }}>
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#25B89A' }} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex" style={{ background: 'linear-gradient(135deg, #060C14 0%, #0E1623 50%, #0A1620 100%)' }}>
@@ -110,10 +144,8 @@ export default function PanelLoginPage() {
               const Icon = r.icon;
               return (
                 <motion.div key={r.value} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 + i * 0.08 }}
-                  className={`glass-dark rounded-2xl p-4 flex items-start gap-3 border transition-all duration-200 cursor-pointer ${role === r.value ? 'border-brand/30' : ''}`}
-                  style={{ borderColor: role === r.value ? 'rgba(18,122,106,0.4)' : undefined,
-                           background: role === r.value ? 'rgba(18,122,106,0.1)' : undefined }}
-                  onClick={() => handleRoleSelect(r)}>
+                  className="glass-dark rounded-2xl p-4 flex items-start gap-3 border transition-all duration-200"
+                  style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
                   <Icon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${r.color}`} />
                   <div>
                     <p className="text-white font-bold text-xs">{r.label}</p>
@@ -123,17 +155,6 @@ export default function PanelLoginPage() {
               );
             })}
           </div>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
-          className="relative z-10 p-4 rounded-2xl border text-[11px] leading-relaxed"
-          style={{ background: 'rgba(239,68,68,0.06)', borderColor: 'rgba(239,68,68,0.15)', color: '#94A3B8' }}>
-          <span className="text-red-400 font-bold block mb-1">⚠ Restricted Access</span>
-          This panel is exclusively for authorised ICC staff. Patient login is available at the{' '}
-          <a href={`${process.env.NEXT_PUBLIC_SITE_URL}/login`} target="_blank" rel="noopener noreferrer"
-            className="font-bold underline underline-offset-2" style={{ color: '#25B89A' }}>
-            Website ↗
-          </a>
         </motion.div>
       </div>
 
@@ -157,7 +178,7 @@ export default function PanelLoginPage() {
 
           <div className="mb-7">
             <h2 className="text-2xl font-extrabold text-white tracking-tight">Panel Login</h2>
-            <p className="text-xs mt-1.5" style={{ color: '#64748B' }}>Select your role and enter credentials to access the dashboard.</p>
+            <p className="text-xs mt-1.5" style={{ color: '#64748B' }}>Enter the credentials issued by the super admin to access the dashboard.</p>
           </div>
 
           {/* Error */}
@@ -178,51 +199,12 @@ export default function PanelLoginPage() {
                 className="flex items-center gap-2 rounded-2xl px-4 py-3 mb-5 text-xs font-bold border"
                 style={{ background: 'rgba(34,197,94,0.1)', borderColor: 'rgba(34,197,94,0.2)', color: '#22c55e' }}>
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                Login successful! Redirecting to {selectedRole.label} dashboard…
+                Login successful! Redirecting to your dashboard…
               </motion.div>
             )}
           </AnimatePresence>
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
-
-            {/* Role selector */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-wide px-1" style={{ color: '#25B89A' }}>Role</label>
-              <div className="relative">
-                <button type="button" onClick={() => setRoleOpen(o => !o)}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-2xl border text-sm font-bold text-white transition-all"
-                  style={{ background: 'rgba(255,255,255,0.04)', borderColor: roleOpen ? 'rgba(18,122,106,0.5)' : 'rgba(255,255,255,0.08)' }}>
-                  <span className="flex items-center gap-2">
-                    <selectedRole.icon className={`w-4 h-4 ${selectedRole.color}`} />
-                    {selectedRole.label}
-                  </span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${roleOpen ? 'rotate-180' : ''}`} style={{ color: '#64748B' }} />
-                </button>
-                <AnimatePresence>
-                  {roleOpen && (
-                    <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }}
-                      className="absolute top-full left-0 right-0 mt-2 z-20 rounded-2xl border shadow-xl overflow-hidden"
-                      style={{ background: '#141E2E', borderColor: 'rgba(255,255,255,0.08)' }}>
-                      {ROLES.map(r => {
-                        const Icon = r.icon;
-                        return (
-                          <button type="button" key={r.value} onClick={() => handleRoleSelect(r)}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-left transition-all hover:text-white"
-                            style={{ background: role === r.value ? 'rgba(18,122,106,0.15)' : 'transparent', color: role === r.value ? '#fff' : '#94A3B8' }}>
-                            <Icon className={`w-4 h-4 flex-shrink-0 ${r.color}`} />
-                            <div>
-                              <p className="text-xs font-bold">{r.label}</p>
-                              <p className="text-[10px]" style={{ color: '#64748B' }}>{r.desc}</p>
-                            </div>
-                            {role === r.value && <CheckCircle2 className="w-3.5 h-3.5 ml-auto text-emerald-400" />}
-                          </button>
-                        );
-                      })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
 
             {/* Email */}
             <div className="flex flex-col gap-1.5">
@@ -266,22 +248,6 @@ export default function PanelLoginPage() {
             </motion.button>
           </form>
 
-          {/* Demo credentials */}
-          <div className="mt-6 p-4 rounded-2xl border" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.06)' }}>
-            <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: '#4B5563' }}>Demo Credentials</p>
-            <p className="text-[11px] leading-relaxed" style={{ color: '#64748B' }}>
-              Use password: <span className="font-mono font-bold text-white">password123</span> with any of the pre-filled emails above.
-            </p>
-          </div>
-
-          {/* Patient link */}
-          <div className="mt-5 flex items-center justify-center gap-2 text-[11px]" style={{ color: '#4B5563' }}>
-            <span>Patient? Login at</span>
-            <a href={`${process.env.NEXT_PUBLIC_SITE_URL}/login`} target="_blank" rel="noopener noreferrer"
-              className="font-bold flex items-center gap-1 transition-colors" style={{ color: '#25B89A' }}>
-              Website <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
         </motion.div>
       </div>
     </div>

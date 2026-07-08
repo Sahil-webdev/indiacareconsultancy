@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart, Users, Stethoscope, Building2, Crown, LayoutDashboard,
@@ -18,6 +18,7 @@ import {
   FileWarning, Clipboard, Briefcase, AlertTriangle, Sparkles,
 } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
+import { clearSession } from '@/lib/session';
 
 type Role = 'super_admin' | 'consultant' | 'doctor' | 'hospital';
 
@@ -303,6 +304,7 @@ function NavSection({
 }
 
 export default function PanelSidebar({ role, userName = 'ICC Admin' }: PanelSidebarProps) {
+  const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -311,6 +313,11 @@ export default function PanelSidebar({ role, userName = 'ICC Admin' }: PanelSide
   const RoleIcon = meta.icon;
   const roleBasePath = `/dashboard/${role.replace('_', '-')}`;
   const closeMobile = () => setMobileOpen(false);
+  const handleLogout = () => {
+    clearSession();
+    closeMobile();
+    router.replace('/login');
+  };
 
   /* ── Preserve sidebar scroll position across navigations ── */
   const navRef = useRef<HTMLElement>(null);
@@ -511,10 +518,10 @@ export default function PanelSidebar({ role, userName = 'ICC Admin' }: PanelSide
             <span className={`panel-sidebar-label ${collapsed ? 'lg:hidden' : ''}`}>Settings</span>
           </Link>
 
-          <Link
-            href="/login"
-            onClick={closeMobile}
-            className={`panel-sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:text-red-400 hover:bg-red-500/5 ${
+          <button
+            type="button"
+            onClick={handleLogout}
+            className={`panel-sidebar-link w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:text-red-400 hover:bg-red-500/5 ${
               collapsed ? 'lg:justify-center lg:px-2' : ''
             }`}
             style={{ color: 'var(--text-secondary)' }}
@@ -523,7 +530,7 @@ export default function PanelSidebar({ role, userName = 'ICC Admin' }: PanelSide
               <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
             </span>
             <span className={`panel-sidebar-label ${collapsed ? 'lg:hidden' : ''}`}>Logout</span>
-          </Link>
+          </button>
         </div>
       </motion.aside>
     </>

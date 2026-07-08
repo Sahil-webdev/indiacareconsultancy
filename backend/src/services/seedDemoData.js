@@ -2,10 +2,12 @@ const bcrypt = require('bcryptjs');
 const { getPool } = require('../config/mysql');
 
 const demoUsers = [
-  { name: 'Vikram Singh', email: 'admin@indiacare.com', password: 'password123', role: 'super_admin' },
-  { name: 'Ritu Consultant', email: 'consultant@indiacare.com', password: 'password123', role: 'consultant' },
-  { name: 'Dr. Ramesh Kumar', email: 'ramesh.kumar@indiacare.com', password: 'password123', role: 'doctor' },
-  { name: 'Apollo Hospital Indraprastha', email: 'contact@apollo-delhi.com', password: 'password123', role: 'hospital' },
+  { name: 'Vikram Singh', email: 'pushpendra12@gmail.com', password: 'admin123', role: 'super_admin' },
+];
+
+const disabledLegacyAccessEmails = [
+  'admin@indiacare.com',
+  'consultant@indiacare.com',
 ];
 
 const hospitalSeeds = [
@@ -203,9 +205,27 @@ const doctorSeeds = [
 ];
 
 async function ensureUser(pool, user) {
-  const [rows] = await pool.execute('SELECT id FROM users WHERE email = ?', [user.email]);
-  if (rows.length) return rows[0].id;
   const passwordHash = await bcrypt.hash(user.password, 12);
+  const [rows] = await pool.execute('SELECT id FROM users WHERE email = ?', [user.email]);
+  if (rows.length) {
+    await pool.execute(
+      'UPDATE users SET name = ?, password_hash = ?, role = ?, is_active = 1 WHERE id = ?',
+      [user.name, passwordHash, user.role, rows[0].id]
+    );
+    return rows[0].id;
+  }
+
+  if (user.role === 'super_admin') {
+    const [superAdminRows] = await pool.execute("SELECT id FROM users WHERE role = 'super_admin' ORDER BY id ASC LIMIT 1");
+    if (superAdminRows.length) {
+      await pool.execute(
+        'UPDATE users SET name = ?, email = ?, password_hash = ?, role = ?, is_active = 1 WHERE id = ?',
+        [user.name, user.email, passwordHash, user.role, superAdminRows[0].id]
+      );
+      return superAdminRows[0].id;
+    }
+  }
+
   const [result] = await pool.execute(
     'INSERT INTO users (name, email, password_hash, role, is_active) VALUES (?, ?, ?, ?, 1)',
     [user.name, user.email, passwordHash, user.role]
@@ -214,12 +234,22 @@ async function ensureUser(pool, user) {
 }
 
 async function ensureEntityUser(pool, role, name, email) {
-  return ensureUser(pool, {
-    name,
-    email,
-    password: 'password123',
-    role,
-  });
+  const passwordHash = await bcrypt.hash(`seed-disabled-${role}-${email}`, 12);
+  const [rows] = await pool.execute('SELECT id FROM users WHERE email = ? LIMIT 1', [email]);
+
+  if (rows.length) {
+    await pool.execute(
+      'UPDATE users SET name = ?, password_hash = ?, role = ?, is_active = 0 WHERE id = ?',
+      [name, passwordHash, role, rows[0].id]
+    );
+    return rows[0].id;
+  }
+
+  const [result] = await pool.execute(
+    'INSERT INTO users (name, email, password_hash, role, is_active) VALUES (?, ?, ?, ?, 0)',
+    [name, email, passwordHash, role]
+  );
+  return result.insertId;
 }
 
 async function replaceChildRows(pool, tableName, fkColumn, fkValue, valueColumn, values) {
@@ -392,6 +422,12 @@ async function ensureAppointmentSeed(pool) {
   );
 }
 
+async function disableLegacyAccess(pool) {
+  for (const email of disabledLegacyAccessEmails) {
+    await pool.execute('UPDATE users SET is_active = 0 WHERE email = ?', [email]);
+  }
+}
+
 async function ensureSeedData() {
   const pool = getPool();
   for (const user of demoUsers) {
@@ -405,6 +441,7 @@ async function ensureSeedData() {
   }
   await ensureLeadSeed(pool);
   await ensureAppointmentSeed(pool);
+  await disableLegacyAccess(pool);
 }
 
 module.exports = { ensureSeedData };

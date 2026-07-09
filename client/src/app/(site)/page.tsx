@@ -708,7 +708,7 @@ export default function Homepage() {
               <motion.div
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-                className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/50 bg-gradient-to-tr from-emerald-500/5 to-teal-500/5 max-w-[480px] aspect-video"
+                className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/50 bg-gradient-to-tr from-emerald-500/5 to-teal-500/5 w-full max-w-[600px] aspect-video"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

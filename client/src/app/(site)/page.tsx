@@ -697,18 +697,18 @@ export default function Homepage() {
 
             {/* ── RIGHT: Doctor + Patient Illustration ── */}
             <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3, duration: 0.8 }}
-              className="lg:col-span-6 relative hidden lg:flex items-center justify-center min-h-[580px] px-8">
+              className="lg:col-span-6 relative hidden lg:flex items-center justify-center min-h-[640px] px-4">
 
               {/* Glow backdrop */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-[480px] h-[480px] rounded-full bg-primary-green/8 blur-3xl animate-pulse" />
+                <div className="w-[520px] h-[520px] rounded-full bg-primary-green/8 blur-3xl animate-pulse" />
               </div>
 
               {/* Modern Clinical Frame Wrapper */}
               <motion.div
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-                className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/50 bg-gradient-to-tr from-emerald-500/5 to-teal-500/5 w-full max-w-[600px] aspect-video"
+                className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/50 bg-gradient-to-tr from-emerald-500/5 to-teal-500/5 w-full max-w-[680px] aspect-video"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

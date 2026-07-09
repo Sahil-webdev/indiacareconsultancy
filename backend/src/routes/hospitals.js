@@ -34,7 +34,9 @@ router.get('/', async (req, res, next) => {
     const params = [];
 
     if (!approval && !status) {
+      // Public client: only show approved + subscribed (paid) hospitals
       conditions.push('h.is_approved = 1');
+      conditions.push('h.is_subscribed = 1');
     }
     if (approval === 'approved') conditions.push('h.is_approved = 1');
     if (approval === 'pending') conditions.push('h.is_approved = 0');

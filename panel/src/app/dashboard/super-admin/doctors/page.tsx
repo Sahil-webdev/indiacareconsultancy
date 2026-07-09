@@ -318,7 +318,8 @@ export default function DoctorsPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [tab, setTab] = useState<'pending' | 'all'>('pending');
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   async function loadDoctors() {
     try {
@@ -333,7 +334,23 @@ export default function DoctorsPage() {
 
   useEffect(() => {
     void (async () => { await loadDoctors(); })();
+    // Auto-refresh every 30 seconds to catch new registrations
+    const interval = setInterval(() => { void loadDoctors(); }, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  async function approveDoctor(id: string, approve: boolean) {
+    setActionLoading(id + (approve ? '_approve' : '_reject'));
+    try {
+      await panelApi(`/api/doctors/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isApproved: approve }),
+      });
+      await loadDoctors();
+    } finally {
+      setActionLoading(null);
+    }
+  }
 
   async function updateDoctor(id: string, updates: Partial<Doctor>) {
     await panelApi(`/api/doctors/${id}`, {
@@ -343,11 +360,17 @@ export default function DoctorsPage() {
     await loadDoctors();
   }
 
-  const filtered = useMemo(() => doctors.filter((d) =>
-    d.name.toLowerCase().includes(search.toLowerCase()) ||
-    d.speciality.toLowerCase().includes(search.toLowerCase()) ||
-    d.location.toLowerCase().includes(search.toLowerCase())
-  ), [doctors, search]);
+  const pending = doctors.filter(d => !d.isApproved);
+  const approved = doctors.filter(d => d.isApproved);
+
+  const filtered = useMemo(() => {
+    const source = tab === 'pending' ? doctors.filter(d => !d.isApproved) : doctors;
+    return source.filter((d) =>
+      d.name.toLowerCase().includes(search.toLowerCase()) ||
+      d.speciality.toLowerCase().includes(search.toLowerCase()) ||
+      d.location.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [doctors, search, tab]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -355,118 +378,194 @@ export default function DoctorsPage() {
         style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'var(--bg-surface)' }}>
         <div>
           <h1 className="font-extrabold text-lg" style={{ color: 'var(--text-primary)' }}>Doctors</h1>
-          <p className="text-[11px]" style={{ color: '#64748B' }}>Approve, subscribe, and manage doctor accounts</p>
+          <p className="text-[11px]" style={{ color: '#64748B' }}>Approve new registrations and manage doctor accounts</p>
         </div>
         <div className="flex items-center gap-3">
+          {pending.length > 0 && (
+            <div className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl animate-pulse"
+              style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>
+              <div className="w-2 h-2 rounded-full bg-amber-400" />
+              {pending.length} pending
+            </div>
+          )}
           <div className="text-xs font-bold px-3 py-1.5 rounded-xl" style={{ background: 'rgba(37,184,154,0.12)', color: '#25B89A' }}>
             {doctors.length} total
           </div>
-          <button onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 text-sm font-extrabold px-4 py-2.5 rounded-2xl text-white"
-            style={{ background: 'linear-gradient(135deg,#25B89A,#127A6A)', boxShadow: '0 4px 16px rgba(37,184,154,0.25)' }}>
-            <UserPlus className="w-4 h-4" /> Add Doctor
+          <button onClick={loadDoctors} className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/10" style={{ color: '#64748B' }}>
+            <RefreshCw className="w-4 h-4" />
           </button>
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto panel-scroll p-6">
-        <div className="panel-card p-4 mb-5">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#64748B' }} />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search doctor, speciality, city"
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)' }} />
-          </div>
-        </div>
-
         {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-emerald-400" /></div> : null}
-        {error ? <div className="text-red-400 text-sm">{error}</div> : null}
+        {error ? <div className="text-red-400 text-sm mb-4">{error}</div> : null}
 
         {!loading && (
-          filtered.length === 0 ? (
-            <div className="panel-card py-16 flex flex-col items-center gap-4 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center">
-                <Stethoscope className="w-7 h-7" style={{ color: '#475569' }} />
-              </div>
-              <div>
-                <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
-                  {search ? 'No doctors found for your search' : 'No doctors yet'}
-                </p>
-                <p className="text-xs mt-1" style={{ color: '#64748B' }}>
-                  {search ? 'Try a different keyword' : 'Click "Add Doctor" to create the first doctor account'}
-                </p>
-              </div>
-              {!search && (
-                <button onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-2 text-sm font-bold px-4 py-2.5 rounded-xl text-white"
-                  style={{ background: 'linear-gradient(135deg,#25B89A,#127A6A)' }}>
-                  <UserPlus className="w-4 h-4" /> Add First Doctor
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="panel-card overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      {['Doctor', 'Speciality', 'Hospital', 'City', 'Fee', 'Rating', 'Approval', 'Subscription', 'Changes'].map(h => (
-                        <th key={h} className="px-4 py-3 text-[10px] font-black uppercase tracking-widest" style={{ color: '#2D4150' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((doctor) => (
-                      <tr key={doctor.id} className="border-b" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                        <td className="px-4 py-3.5">
-                          <div>
-                            <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{doctor.name}</p>
-                            {doctor.email && <p className="text-[10px] mt-0.5" style={{ color: '#475569' }}>{doctor.email}</p>}
+          <>
+            {/* ── PENDING APPROVAL SECTION ── */}
+            {pending.length > 0 && (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <p className="text-xs font-black uppercase tracking-widest" style={{ color: '#f59e0b' }}>
+                    Pending Approval Requests ({pending.length})
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {pending.map(doctor => (
+                    <motion.div key={doctor.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                      className="rounded-2xl p-5 flex flex-col gap-4"
+                      style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black"
+                              style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
+                              {doctor.name.charAt(0)}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{doctor.name}</p>
+                              <p className="text-[10px] truncate" style={{ color: '#64748B' }}>{doctor.email}</p>
+                            </div>
                           </div>
-                        </td>
-                        <td className="px-4 py-3.5" style={{ color: '#94A3B8' }}>{doctor.speciality}</td>
-                        <td className="px-4 py-3.5" style={{ color: '#94A3B8' }}>{doctor.hospitalName || 'Independent'}</td>
-                        <td className="px-4 py-3.5" style={{ color: '#94A3B8' }}>{doctor.location}</td>
-                        <td className="px-4 py-3.5 text-white font-bold">₹{doctor.consultationFee}</td>
-                        <td className="px-4 py-3.5 text-amber-400 font-bold">{doctor.rating}</td>
-                        <td className="px-4 py-3.5">
-                          <button onClick={() => updateDoctor(doctor.id, { isApproved: !doctor.isApproved } as Partial<Doctor>)}
-                            className="px-3 py-1.5 rounded-xl text-xs font-bold"
-                            style={{ background: doctor.isApproved ? 'rgba(34,197,94,0.12)' : 'rgba(245,158,11,0.12)', color: doctor.isApproved ? '#4ade80' : '#f59e0b' }}>
-                            {doctor.isApproved ? '✓ Approved' : 'Approve'}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <button onClick={() => updateDoctor(doctor.id, { isSubscribed: !doctor.isSubscribed } as Partial<Doctor>)}
-                            className="px-3 py-1.5 rounded-xl text-xs font-bold"
-                            style={{ background: doctor.isSubscribed ? 'rgba(37,184,154,0.12)' : 'rgba(148,163,184,0.12)', color: doctor.isSubscribed ? '#25B89A' : '#94A3B8' }}>
-                            {doctor.isSubscribed ? 'Active' : 'Inactive'}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
-                            style={{ background: doctor.pendingChangeRequests ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.04)', color: doctor.pendingChangeRequests ? '#f59e0b' : '#94A3B8' }}>
-                            <CheckCircle2 className="w-3 h-3" /> {doctor.pendingChangeRequests}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0"
+                          style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
+                          NEW REQUEST
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div className="flex items-center gap-1.5" style={{ color: '#94A3B8' }}>
+                          <Stethoscope className="w-3 h-3 flex-shrink-0" style={{ color: '#25B89A' }} />
+                          <span className="truncate">{doctor.speciality}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5" style={{ color: '#94A3B8' }}>
+                          <MapPin className="w-3 h-3 flex-shrink-0" style={{ color: '#25B89A' }} />
+                          <span className="truncate">{doctor.location || '—'}</span>
+                        </div>
+                        {doctor.phone && (
+                          <div className="flex items-center gap-1.5" style={{ color: '#94A3B8' }}>
+                            <Phone className="w-3 h-3 flex-shrink-0" style={{ color: '#25B89A' }} />
+                            <span className="truncate">{doctor.phone}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5" style={{ color: '#94A3B8' }}>
+                          <Shield className="w-3 h-3 flex-shrink-0" style={{ color: '#25B89A' }} />
+                          <span>₹{doctor.consultationFee} fee</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => approveDoctor(doctor.id, true)}
+                          disabled={actionLoading === doctor.id + '_approve'}
+                          className="flex-1 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all"
+                          style={{ background: 'linear-gradient(135deg, #25B89A, #127A6A)', color: '#fff', boxShadow: '0 4px 12px rgba(37,184,154,0.25)' }}>
+                          {actionLoading === doctor.id + '_approve'
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <><CheckCircle2 className="w-3.5 h-3.5" /> Approve</>}
+                        </button>
+                        <button
+                          onClick={() => approveDoctor(doctor.id, false)}
+                          disabled={actionLoading === doctor.id + '_reject'}
+                          className="px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                          style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
+                          {actionLoading === doctor.id + '_reject'
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : 'Reject'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── TAB BAR + SEARCH ── */}
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
+              <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                {(['pending', 'all'] as const).map(t => (
+                  <button key={t} onClick={() => setTab(t)}
+                    className="px-4 py-2 text-xs font-bold capitalize transition-all"
+                    style={{
+                      background: tab === t ? 'rgba(37,184,154,0.15)' : 'transparent',
+                      color: tab === t ? '#25B89A' : '#64748B',
+                    }}>
+                    {t === 'pending' ? `Pending (${pending.length})` : `All Doctors (${doctors.length})`}
+                  </button>
+                ))}
+              </div>
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#64748B' }} />
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search doctor, speciality, city"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm text-white focus:outline-none"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }} />
               </div>
             </div>
-          )
+
+            {/* ── DOCTOR TABLE ── */}
+            {filtered.length === 0 ? (
+              <div className="panel-card py-16 flex flex-col items-center gap-4 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center">
+                  <Stethoscope className="w-7 h-7" style={{ color: '#475569' }} />
+                </div>
+                <div>
+                  <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                    {search ? 'No doctors found for your search' : tab === 'pending' ? 'No pending requests' : 'No doctors yet'}
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: '#64748B' }}>
+                    {search ? 'Try a different keyword' : tab === 'pending' ? 'All doctors have been processed.' : 'Doctors will appear here once they self-register via the panel login page.'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="panel-card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        {['Doctor', 'Speciality', 'Hospital', 'City', 'Fee', 'Approval', 'Subscription'].map(h => (
+                          <th key={h} className="px-4 py-3 text-[10px] font-black uppercase tracking-widest" style={{ color: '#2D4150' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((doctor) => (
+                        <tr key={doctor.id} className="border-b" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                          <td className="px-4 py-3.5">
+                            <div>
+                              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{doctor.name}</p>
+                              {doctor.email && <p className="text-[10px] mt-0.5" style={{ color: '#475569' }}>{doctor.email}</p>}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5" style={{ color: '#94A3B8' }}>{doctor.speciality}</td>
+                          <td className="px-4 py-3.5" style={{ color: '#94A3B8' }}>{doctor.hospitalName || 'Independent'}</td>
+                          <td className="px-4 py-3.5" style={{ color: '#94A3B8' }}>{doctor.location}</td>
+                          <td className="px-4 py-3.5 text-white font-bold">₹{doctor.consultationFee}</td>
+                          <td className="px-4 py-3.5">
+                            <button onClick={() => approveDoctor(doctor.id, !doctor.isApproved)}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold"
+                              style={{ background: doctor.isApproved ? 'rgba(34,197,94,0.12)' : 'rgba(245,158,11,0.12)', color: doctor.isApproved ? '#4ade80' : '#f59e0b' }}>
+                              {doctor.isApproved ? '✓ Approved' : 'Approve'}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <button onClick={() => updateDoctor(doctor.id, { isSubscribed: !doctor.isSubscribed } as Partial<Doctor>)}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold"
+                              style={{ background: doctor.isSubscribed ? 'rgba(37,184,154,0.12)' : 'rgba(148,163,184,0.12)', color: doctor.isSubscribed ? '#25B89A' : '#94A3B8' }}>
+                              {doctor.isSubscribed ? 'Subscribed' : 'Unsubscribed'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </main>
-
-      <AnimatePresence>
-        {showAddModal && (
-          <AddDoctorModal
-            onClose={() => setShowAddModal(false)}
-            onAdded={() => { void loadDoctors(); }}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

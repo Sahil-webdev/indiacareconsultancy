@@ -701,7 +701,7 @@ export default function Homepage() {
 
               {/* Background Image Container with exact aspect ratio to prevent cropping */}
               <div 
-                className="w-full rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/50 bg-cover bg-center bg-no-repeat z-0 relative"
+                className="w-[115%] lg:-mr-16 rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/50 bg-cover bg-center bg-no-repeat z-0 relative"
                 style={{ 
                   backgroundImage: "url('/hero-doctor-uploaded.jpg')",
                   aspectRatio: '1024/558'

@@ -699,12 +699,11 @@ export default function Homepage() {
             <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3, duration: 0.8 }}
               className="lg:col-span-6 relative hidden lg:flex items-center justify-center w-full">
 
-              {/* Background Image Container with exact aspect ratio to prevent cropping */}
+              {/* Background Image Container with increased height */}
               <div 
-                className="w-[115%] lg:-mr-16 rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/50 bg-cover bg-center bg-no-repeat z-0 relative"
+                className="w-[115%] lg:-mr-16 h-[460px] rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/50 bg-cover bg-center bg-no-repeat z-0 relative"
                 style={{ 
-                  backgroundImage: "url('/hero-doctor-uploaded.jpg')",
-                  aspectRatio: '1024/558'
+                  backgroundImage: "url('/hero-doctor-uploaded.jpg')"
                 }}
               >
                 {/* Left Blur Overlay fading smoothly towards the right */}

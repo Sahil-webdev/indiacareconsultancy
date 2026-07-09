@@ -697,27 +697,13 @@ export default function Homepage() {
 
             {/* ── RIGHT: Doctor + Patient Illustration ── */}
             <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3, duration: 0.8 }}
-              className="lg:col-span-6 relative hidden lg:flex items-center justify-center min-h-[640px] px-4">
+              className="lg:col-span-6 relative hidden lg:flex items-center justify-center min-h-[580px] w-full">
 
-              {/* Glow backdrop */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-[520px] h-[520px] rounded-full bg-primary-green/8 blur-3xl animate-pulse" />
-              </div>
-
-              {/* Modern Clinical Frame Wrapper */}
-              <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-                className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/50 bg-gradient-to-tr from-emerald-500/5 to-teal-500/5 w-full max-w-[680px] aspect-video"
+              {/* Background Image Container */}
+              <div 
+                className="absolute inset-0 rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/50 bg-cover bg-center bg-no-repeat z-0"
+                style={{ backgroundImage: "url('/hero-doctor-uploaded.jpg')" }}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/hero-doctor-uploaded.jpg"
-                  alt="Doctor consulting patient — India Care Consultancy"
-                  className="w-full h-full object-cover select-none"
-                  draggable={false}
-                />
-
                 {/* Left Blur Overlay fading smoothly towards the right */}
                 <div 
                   className="absolute inset-y-0 left-0 w-[45%] backdrop-blur-[8px] pointer-events-none z-10"
@@ -726,7 +712,7 @@ export default function Homepage() {
                     WebkitMaskImage: 'linear-gradient(to right, rgba(0, 0, 0, 1) 30%, rgba(0, 0, 0, 0))'
                   }}
                 />
-              </motion.div>
+              </div>
 
               {/* Floating card 1 — Top Left: Verified Doctors */}
               <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.8 }}

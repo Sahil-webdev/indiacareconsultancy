@@ -532,7 +532,7 @@ export default function Homepage() {
       {/* ═══════════════════════════════════════════════
           SECTION 1 — HERO
       ═══════════════════════════════════════════════ */}
-      <section className="relative overflow-visible min-h-screen flex flex-col justify-start pt-32 pb-12 gradient-hero z-30">
+      <section className="relative overflow-visible min-h-screen flex flex-col justify-start pt-10 pb-12 gradient-hero z-30">
         {/* Background shapes */}
         <div className="absolute -top-40 -right-40 w-[700px] h-[700px] rounded-full bg-primary-green/5 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-20 -left-20 w-[500px] h-[500px] rounded-full bg-accent-green/5 blur-3xl pointer-events-none" />

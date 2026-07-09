@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
@@ -396,9 +396,16 @@ function SpotlightCarousel({ items }: { items: any[] }) {
 ───────────────────────────────────────────────────── */
 export default function Homepage() {
   const router = useRouter();
-  const [speciality, setSpeciality] = useState('');
-  const [location, setLocation] = useState('');
-  const [budget, setBudget] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchLocation, setSearchLocation] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [filteredSuggestions, setFilteredSuggestions] = useState<{
+    type: 'speciality' | 'doctor' | 'hospital';
+    id?: string;
+    title: string;
+    subtitle?: string;
+  }[]>([]);
+
   const [testimonialIdx, setTestimonialIdx] = useState(0);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [promotedItems, setPromotedItems] = useState<any[]>([]);
@@ -417,13 +424,85 @@ export default function Homepage() {
     return () => clearInterval(t);
   }, []);
 
+  const updateSuggestions = useCallback((query: string) => {
+    if (!query.trim()) {
+      // Default popular specialities
+      const popular = INITIAL_SPECIALITIES.slice(0, 6).map(s => ({
+        type: 'speciality' as const,
+        title: s.title,
+        subtitle: 'Speciality'
+      }));
+      setFilteredSuggestions(popular);
+      return;
+    }
+
+    const q = query.toLowerCase();
+    const suggestions: typeof filteredSuggestions = [];
+
+    // Match specialities
+    INITIAL_SPECIALITIES.forEach(s => {
+      if (s.title.toLowerCase().includes(q)) {
+        suggestions.push({
+          type: 'speciality',
+          title: s.title,
+          subtitle: 'Speciality'
+        });
+      }
+    });
+
+    // Match doctors
+    INITIAL_DOCTORS.forEach(d => {
+      if (d.isApproved && d.name.toLowerCase().includes(q)) {
+        suggestions.push({
+          type: 'doctor',
+          id: d.id,
+          title: d.name,
+          subtitle: `${d.speciality} · ${d.location}`
+        });
+      }
+    });
+
+    // Match hospitals
+    INITIAL_HOSPITALS.forEach(h => {
+      if (h.name.toLowerCase().includes(q)) {
+        suggestions.push({
+          type: 'hospital',
+          id: h.id,
+          title: h.name,
+          subtitle: `Hospital · ${h.location}`
+        });
+      }
+    });
+
+    setFilteredSuggestions(suggestions.slice(0, 8));
+  }, []);
+
+  // Update suggestions when query changes
+  useEffect(() => {
+    updateSuggestions(searchQuery);
+  }, [searchQuery, updateSuggestions]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
-    if (speciality) params.set('speciality', speciality);
-    if (location) params.set('location', location);
-    if (budget) params.set('budget', budget);
+    if (searchQuery) params.set('q', searchQuery);
+    if (searchLocation) params.set('location', searchLocation);
     router.push(`/find-doctor?${params.toString()}`);
+  };
+
+  const handleSuggestionClick = (sug: typeof filteredSuggestions[number]) => {
+    if (sug.type === 'doctor') {
+      router.push(`/find-doctor/${sug.id}`);
+    } else if (sug.type === 'hospital') {
+      router.push(`/hospitals/${sug.id}`);
+    } else {
+      // Speciality
+      const params = new URLSearchParams();
+      params.set('speciality', sug.title);
+      if (searchLocation) params.set('location', searchLocation);
+      router.push(`/find-doctor?${params.toString()}`);
+    }
+    setShowSuggestions(false);
   };
 
   const featuredDoctors = INITIAL_DOCTORS.filter(d => d.isApproved).slice(0, 4);
@@ -453,7 +532,7 @@ export default function Homepage() {
       {/* ═══════════════════════════════════════════════
           SECTION 1 — HERO
       ═══════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden min-h-screen flex flex-col justify-center pt-20 pb-12 gradient-hero">
+      <section className="relative overflow-visible min-h-screen flex flex-col justify-center pt-20 pb-12 gradient-hero z-30">
         {/* Background shapes */}
         <div className="absolute -top-40 -right-40 w-[700px] h-[700px] rounded-full bg-primary-green/5 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-20 -left-20 w-[500px] h-[500px] rounded-full bg-accent-green/5 blur-3xl pointer-events-none" />
@@ -470,13 +549,13 @@ export default function Homepage() {
 
             {/* ── LEFT ── */}
             <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}
-              className="lg:col-span-6 flex flex-col gap-7">
+              className="lg:col-span-6 flex flex-col gap-7 relative z-40">
 
               {/* Trust pill */}
               <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}
                 className="inline-flex items-center gap-2 bg-soft-green border border-primary-green/20 px-4 py-2 rounded-full w-fit shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-primary-green animate-pulse" />
-                <span className="text-[11px] font-black text-primary-green uppercase tracking-widest">India&apos;s Trusted Healthcare Guidance Platform</span>
+                <span className="text-[11px] font-black text-primary-green uppercase tracking-widest">Get Doctor Consultation @ just ₹9 Only</span>
               </motion.div>
 
               {/* Headline */}
@@ -497,7 +576,7 @@ export default function Homepage() {
                 <Link href="/book-consultation"
                   className="flex items-center gap-2 text-sm font-bold text-white gradient-primary px-7 py-4 rounded-2xl shadow-lg glow-green hover-lift">
                   <MessageSquare className="w-4 h-4" />
-                  Get Free Consultation
+                  Get Consultation
                 </Link>
                 <Link href="/find-doctor"
                   className="flex items-center gap-2 text-sm font-bold text-dark-navy glass-card border border-white/50 px-7 py-4 rounded-2xl hover:border-primary-green/30 hover:text-primary-green transition-colors shadow-md">
@@ -520,87 +599,197 @@ export default function Homepage() {
                 ))}
               </div>
 
-              {/* Search Card */}
+              {/* Search Card (Practo Autocomplete Style) */}
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45, duration: 0.6 }}
-                className="glass-card rounded-3xl p-5 shadow-2xl border border-white/50 mt-2">
+                className="w-full mt-2 relative">
                 <form onSubmit={handleSearch}>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-primary-green uppercase tracking-widest px-1 flex items-center gap-1">
-                        <Stethoscope className="w-3 h-3" /> Speciality
-                      </label>
-                      <select value={speciality} onChange={e => setSpeciality(e.target.value)}
-                        className="w-full bg-white/80 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-dark-navy focus:outline-none focus:border-primary-green focus:ring-2 focus:ring-primary-green/10">
-                        <option value="">Any Speciality</option>
-                        {INITIAL_SPECIALITIES.map(s => <option key={s.slug} value={s.title}>{s.title}</option>)}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center bg-white border border-slate-200/80 rounded-2xl sm:rounded-full p-2.5 shadow-2xl relative gap-2 sm:gap-0 z-40">
+                    
+                    {/* Location Selection */}
+                    <div className="flex items-center gap-2 px-3 py-1 sm:w-1/3">
+                      <MapPin className="w-4 h-4 text-primary-green flex-shrink-0" />
+                      <select
+                        value={searchLocation}
+                        onChange={e => setSearchLocation(e.target.value)}
+                        className="w-full bg-transparent border-none text-xs font-extrabold text-dark-navy focus:outline-none cursor-pointer placeholder-slate-400"
+                      >
+                        <option value="">Any Location (City)</option>
+                        {locations.map(l => (
+                          <option key={l} value={l}>{l}</option>
+                        ))}
                       </select>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-primary-green uppercase tracking-widest px-1 flex items-center gap-1">
-                        <MapPin className="w-3 h-3" /> Location
-                      </label>
-                      <select value={location} onChange={e => setLocation(e.target.value)}
-                        className="w-full bg-white/80 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-dark-navy focus:outline-none focus:border-primary-green focus:ring-2 focus:ring-primary-green/10">
-                        <option value="">Any City</option>
-                        {locations.map(l => <option key={l} value={l}>{l}</option>)}
-                      </select>
+
+                    {/* Separator line */}
+                    <div className="hidden sm:block h-6 w-[1px] bg-slate-200" />
+
+                    {/* Search Autocomplete Input */}
+                    <div className="flex-1 flex items-center gap-2 px-3 py-1">
+                      <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Search doctors, clinics, hospitals, etc."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        onFocus={() => setShowSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                        className="w-full bg-transparent border-none text-xs font-semibold text-dark-navy placeholder-slate-400 focus:outline-none"
+                      />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-primary-green uppercase tracking-widest px-1 flex items-center gap-1">
-                        <Globe className="w-3 h-3" /> Budget
-                      </label>
-                      <select value={budget} onChange={e => setBudget(e.target.value)}
-                        className="w-full bg-white/80 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-dark-navy focus:outline-none focus:border-primary-green focus:ring-2 focus:ring-primary-green/10">
-                        <option value="">Any Budget</option>
-                        <option value="500">Under ₹500</option>
-                        <option value="1000">Under ₹1,000</option>
-                        <option value="1500">Under ₹1,500</option>
-                        <option value="2000">₹2,000+</option>
-                      </select>
-                    </div>
+
+                    {/* Search Submit button */}
+                    <button
+                      type="submit"
+                      className="px-6 py-2.5 sm:py-3 bg-primary-green hover:bg-dark-green text-white text-xs font-bold rounded-xl sm:rounded-full shadow-md transition-colors flex items-center justify-center gap-1.5 flex-shrink-0"
+                    >
+                      <Search className="w-3.5 h-3.5" />
+                      <span>Search</span>
+                    </button>
+
+                    {/* Suggestions Dropdown (Relative to the entire search card container for full width & z-index overlay) */}
+                    <AnimatePresence>
+                      {showSuggestions && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 8 }}
+                          className="absolute top-full left-0 right-0 mt-3 bg-white rounded-3xl border border-slate-100 shadow-2xl overflow-hidden z-[99999] opacity-100"
+                        >
+                          <div className="max-h-[280px] overflow-y-auto py-2 pr-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                            {filteredSuggestions.length > 0 ? (
+                              filteredSuggestions.map((sug, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onMouseDown={() => handleSuggestionClick(sug)}
+                                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 last:border-b-0"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                                      {sug.type === 'speciality' ? <Stethoscope className="w-4 h-4 text-primary-green" /> :
+                                       sug.type === 'doctor' ? <Heart className="w-4 h-4 text-red-500" /> :
+                                       <Building2 className="w-4 h-4 text-blue-500" />}
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-bold text-dark-navy">{sug.title}</p>
+                                      {sug.subtitle && <p className="text-[10px] text-text-grey mt-0.5">{sug.subtitle}</p>}
+                                    </div>
+                                  </div>
+                                  <span className="text-[9px] font-black tracking-widest text-slate-400 bg-slate-100 px-2 py-0.5 rounded uppercase select-none">
+                                    {sug.type}
+                                  </span>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-5 py-6 text-center text-slate-400 text-xs">
+                                No matches found for "{searchQuery}"
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
                   </div>
-                  <button type="submit"
-                    className="mt-4 w-full flex items-center justify-center gap-2 gradient-primary text-white text-sm font-bold py-3.5 rounded-2xl shadow-lg glow-green hover-lift">
-                    <Search className="w-4 h-4" />
-                    Search Doctors & Hospitals
-                  </button>
                 </form>
               </motion.div>
             </motion.div>
 
-            {/* ── RIGHT: Floating Ecosystem ── */}
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3, duration: 0.7 }}
-              className="lg:col-span-6 relative hidden lg:flex items-center justify-center">
+            {/* ── RIGHT: Doctor + Patient Illustration ── */}
+            <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3, duration: 0.8 }}
+              className="lg:col-span-6 relative hidden lg:flex items-center justify-center min-h-[580px] px-8">
 
-              {/* Central circle */}
-              <div className="relative w-72 h-72">
-                <motion.div animate={{ rotate: 360 }} transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
-                  className="absolute inset-0 rounded-full border-2 border-dashed border-primary-green/20" />
-                <motion.div animate={{ rotate: -360 }} transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-                  className="absolute inset-8 rounded-full border border-dashed border-accent-green/20" />
-                {/* Central logo */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-32 h-32 rounded-3xl gradient-primary shadow-2xl glow-green flex flex-col items-center justify-center gap-1 p-4">
-                    <Heart className="w-10 h-10 text-white fill-white" />
-                    <span className="text-white text-[9px] font-black uppercase tracking-widest text-center leading-tight">India Care Consultancy</span>
-                  </div>
-                </div>
-
-                {/* Orbiting dots */}
-                {[0, 60, 120, 180, 240, 300].map((deg, i) => (
-                  <motion.div key={i} animate={{ rotate: 360 }} transition={{ duration: 15 + i * 2, repeat: Infinity, ease: 'linear', delay: i * 0.5 }}
-                    className="absolute inset-0 flex items-start justify-center" style={{ transformOrigin: '50% 50%' }}>
-                    <div className="w-3 h-3 rounded-full bg-primary-green/30 -mt-1.5" style={{ marginTop: '-6px' }} />
-                  </motion.div>
-                ))}
+              {/* Glow backdrop */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-[480px] h-[480px] rounded-full bg-primary-green/8 blur-3xl animate-pulse" />
               </div>
 
-              {/* Floating cards */}
-              <FloatingCard delay={0.5} className="top-4 -left-4 w-44" icon={BadgeCheck} color="bg-primary-green" label="Verified Doctors" sublabel="100+ NMC Certified" />
-              <FloatingCard delay={0.7} className="top-12 -right-8 w-40" icon={Building2} color="bg-indigo-500" label="Partner Hospitals" sublabel="30+ Premium" />
-              <FloatingCard delay={0.9} className="-bottom-2 -left-8 w-40" icon={Clock} color="bg-amber-500" label="Available Today" sublabel="Fast Slots" />
-              <FloatingCard delay={1.1} className="bottom-12 -right-4 w-44" icon={MessageSquare} color="bg-violet-500" label="Health Guidance" sublabel="Free consultation" />
-              <FloatingCard delay={1.3} className="top-1/2 -left-12 w-38" icon={Zap} color="bg-emerald-500" label="Fast Appointment" sublabel="Same day" />
+              {/* Wall Branding Logo Watermark Behind Doctor */}
+              <div className="absolute top-[18%] left-1/2 -translate-x-1/2 text-center pointer-events-none select-none z-0 opacity-[0.05] flex flex-col items-center">
+                <div className="text-4xl font-black text-dark-navy tracking-widest uppercase">India Care</div>
+                <div className="text-3xl font-bold text-primary-green tracking-widest uppercase mt-1">Consultancy</div>
+                <div className="text-[10px] tracking-[0.3em] uppercase text-text-grey font-black mt-2">Care | Guidance | Trust</div>
+              </div>
+
+              {/* Modern Clinical Frame Wrapper */}
+              <motion.div
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+                className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/50 bg-gradient-to-tr from-emerald-500/5 to-teal-500/5 max-w-[480px] aspect-square"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/hero-doctor-new.png"
+                  alt="Doctor consulting patient — India Care Consultancy"
+                  className="w-full h-full object-cover select-none"
+                  draggable={false}
+                />
+              </motion.div>
+
+              {/* Floating card 1 — Top Left: Verified Doctors */}
+              <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.8 }}
+                className="absolute left-[-15px] top-[12%] glass-card rounded-2xl px-5 py-3.5 shadow-xl border border-primary-green/15 flex items-center gap-3.5 z-20 hover-lift bg-white/95">
+                <span className="w-10 h-10 rounded-xl bg-primary-green/10 text-primary-green flex items-center justify-center flex-shrink-0">
+                  <BadgeCheck className="w-5.5 h-5.5" />
+                </span>
+                <div>
+                  <p className="text-xs font-black text-dark-navy">Verified Doctors</p>
+                  <p className="text-[10px] text-text-grey font-bold mt-0.5">500+ Specialists</p>
+                </div>
+              </motion.div>
+
+              {/* Floating card 2 — Middle Left: Top Hospitals */}
+              <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1.0 }}
+                className="absolute left-[-35px] top-[37%] glass-card rounded-2xl px-5 py-3.5 shadow-xl border border-indigo-200/40 flex items-center gap-3.5 z-20 hover-lift bg-white/95">
+                <span className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center flex-shrink-0">
+                  <Building2 className="w-5.5 h-5.5" />
+                </span>
+                <div>
+                  <p className="text-xs font-black text-dark-navy">Top Hospitals</p>
+                  <p className="text-[10px] text-text-grey font-bold mt-0.5">50+ Network</p>
+                </div>
+              </motion.div>
+
+              {/* Floating card 3 — Bottom Left: 24/7 Support */}
+              <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1.2 }}
+                className="absolute left-[-15px] top-[62%] glass-card rounded-2xl px-5 py-3.5 shadow-xl border border-amber-200/40 flex items-center gap-3.5 z-20 hover-lift bg-white/95">
+                <span className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center flex-shrink-0">
+                  <PhoneCall className="w-5.5 h-5.5" />
+                </span>
+                <div>
+                  <p className="text-xs font-black text-dark-navy">24/7 Support</p>
+                  <p className="text-[10px] text-text-grey font-bold mt-0.5">Always Here</p>
+                </div>
+              </motion.div>
+
+              {/* Secure • Trusted • Reliable banner bottom left */}
+              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.4 }}
+                className="absolute left-[-25px] bottom-[2%] bg-[#0A192F] text-white rounded-2xl px-5 py-3 shadow-2xl border border-white/10 z-20 flex items-center gap-3.5 max-w-[280px]">
+                <span className="w-9 h-9 rounded-xl bg-primary-green flex items-center justify-center flex-shrink-0 text-white shadow-lg shadow-primary-green/30">
+                  <Shield className="w-5 h-5" />
+                </span>
+                <div>
+                  <p className="text-[11px] font-black tracking-wide uppercase text-white">Secure • Trusted • Reliable</p>
+                  <p className="text-[9px] text-[#94A3B8] font-bold mt-0.5">Your Health is Our Priority</p>
+                </div>
+              </motion.div>
+
+              {/* 10,000+ Happy Patients card bottom right */}
+              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.6 }}
+                className="absolute right-[-25px] bottom-[2%] glass-card rounded-2xl px-5 py-3 shadow-2xl border border-emerald-200/40 z-20 flex items-center gap-3 bg-white/95">
+                <div className="flex -space-x-2 select-none">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="w-8 h-8 rounded-full border-2 border-white object-cover" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="patient 1" />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="w-8 h-8 rounded-full border-2 border-white object-cover" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="patient 2" />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="w-8 h-8 rounded-full border-2 border-white object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80" alt="patient 3" />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-dark-navy leading-none">10,000+</p>
+                  <p className="text-[9px] text-text-grey font-bold mt-1">Happy Patients</p>
+                </div>
+              </motion.div>
             </motion.div>
           </div>
         </div>

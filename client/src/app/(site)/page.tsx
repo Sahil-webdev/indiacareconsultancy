@@ -704,25 +704,27 @@ export default function Homepage() {
                 <div className="w-[480px] h-[480px] rounded-full bg-primary-green/8 blur-3xl animate-pulse" />
               </div>
 
-              {/* Wall Branding Logo Watermark Behind Doctor */}
-              <div className="absolute top-[18%] left-1/2 -translate-x-1/2 text-center pointer-events-none select-none z-0 opacity-[0.05] flex flex-col items-center">
-                <div className="text-4xl font-black text-dark-navy tracking-widest uppercase">India Care</div>
-                <div className="text-3xl font-bold text-primary-green tracking-widest uppercase mt-1">Consultancy</div>
-                <div className="text-[10px] tracking-[0.3em] uppercase text-text-grey font-black mt-2">Care | Guidance | Trust</div>
-              </div>
-
               {/* Modern Clinical Frame Wrapper */}
               <motion.div
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-                className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/50 bg-gradient-to-tr from-emerald-500/5 to-teal-500/5 max-w-[480px] aspect-square"
+                className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/50 bg-gradient-to-tr from-emerald-500/5 to-teal-500/5 max-w-[480px] aspect-video"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/hero-doctor-new.png"
+                  src="/hero-doctor-uploaded.jpg"
                   alt="Doctor consulting patient — India Care Consultancy"
                   className="w-full h-full object-cover select-none"
                   draggable={false}
+                />
+
+                {/* Left Blur Overlay fading smoothly towards the right */}
+                <div 
+                  className="absolute inset-y-0 left-0 w-[45%] backdrop-blur-[8px] pointer-events-none z-10"
+                  style={{
+                    maskImage: 'linear-gradient(to right, rgba(0, 0, 0, 1) 30%, rgba(0, 0, 0, 0))',
+                    WebkitMaskImage: 'linear-gradient(to right, rgba(0, 0, 0, 1) 30%, rgba(0, 0, 0, 0))'
+                  }}
                 />
               </motion.div>
 

@@ -115,13 +115,12 @@ export default function PanelLoginPage() {
 
         {/* Logo */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3 relative z-10">
-          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, #127A6A, #075E52)' }}>
-            <Heart className="w-5.5 h-5.5 text-white fill-white" />
-          </div>
-          <div>
-            <span className="font-extrabold text-lg text-white tracking-wider block leading-tight">INDIA CARE</span>
-            <span className="text-[10px] font-bold tracking-[0.2em] block" style={{ color: '#25B89A' }}>CONSULTANCY</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="India Care Consultancy Logo"
+            className="h-16 w-auto object-contain drop-shadow-md"
+          />
         </motion.div>
 
         {/* Hero text */}
@@ -164,13 +163,12 @@ export default function PanelLoginPage() {
 
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-2 mb-8">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #127A6A, #075E52)' }}>
-            <Heart className="w-4.5 h-4.5 text-white fill-white" />
-          </div>
-          <div>
-            <span className="font-extrabold text-sm text-white tracking-wider block">INDIA CARE</span>
-            <span className="text-[9px] font-bold tracking-widest block" style={{ color: '#25B89A' }}>PANEL ACCESS</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="India Care Consultancy Logo"
+            className="h-14 w-auto object-contain drop-shadow-md"
+          />
         </div>
 
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}

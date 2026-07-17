@@ -13,6 +13,7 @@ const leadRoutes     = require('./src/routes/leads');
 const promoteRoutes  = require('./src/routes/promote');
 const appointmentRoutes = require('./src/routes/appointments');
 const subscriptionRoutes = require('./src/routes/subscriptions');
+const specialitiesRoutes = require('./src/routes/specialities');
 
 const app = express();
 
@@ -36,13 +37,14 @@ app.get('/api/health', (req, res) => {
 });
 
 // ── API Routes
-app.use('/api/auth',      authRoutes);
-app.use('/api/doctors',   doctorRoutes);
-app.use('/api/hospitals', hospitalRoutes);
-app.use('/api/leads',     leadRoutes);
-app.use('/api/appointments', appointmentRoutes);
+app.use('/api/auth',          authRoutes);
+app.use('/api/doctors',       doctorRoutes);
+app.use('/api/hospitals',     hospitalRoutes);
+app.use('/api/leads',         leadRoutes);
+app.use('/api/appointments',  appointmentRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
-app.use('/api/promote',   promoteRoutes);
+app.use('/api/promote',       promoteRoutes);
+app.use('/api/specialities',  specialitiesRoutes);
 
 // ── 404 & Error handlers
 app.use(notFound);

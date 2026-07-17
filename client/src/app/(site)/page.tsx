@@ -409,6 +409,7 @@ export default function Homepage() {
   const [testimonialIdx, setTestimonialIdx] = useState(0);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [promotedItems, setPromotedItems] = useState<any[]>([]);
+  const [homeSpecs, setHomeSpecs] = useState<{ id: number; name: string; icon: string; description: string; color_preset: number }[]>([]);
 
   // Fetch promoted profiles
   useEffect(() => {
@@ -416,6 +417,22 @@ export default function Homepage() {
       .then(res => res.json())
       .then(data => setPromotedItems(data))
       .catch(err => console.error('Failed to load promoted items:', err));
+  }, []);
+
+  // Fetch specialities dynamically
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+  useEffect(() => {
+    fetch(`${API_URL}/api/specialities`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.specialities) && data.specialities.length > 0) {
+          setHomeSpecs(data.specialities);
+        } else {
+          setHomeSpecs(INITIAL_SPECIALITIES.map((s, idx) => ({ id: idx, name: s.title, icon: '', description: s.desc, color_preset: idx % 10 })));
+        }
+      })
+      .catch(() => setHomeSpecs(INITIAL_SPECIALITIES.map((s, idx) => ({ id: idx, name: s.title, icon: '', description: s.desc, color_preset: idx % 10 }))));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Testimonial auto-play
@@ -924,22 +941,26 @@ export default function Homepage() {
             </Link>
           </div>
           <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-            {INITIAL_SPECIALITIES.map((sp, i) => {
-              const Icon = ICON_MAP[sp.icon] || Stethoscope;
-              const grad = DEPT_GRAD[sp.icon] || 'from-primary-green to-accent-green';
+            {(homeSpecs.length > 0 ? homeSpecs : INITIAL_SPECIALITIES.map((s, idx) => ({ id: idx, name: s.title, icon: '', description: s.desc, color_preset: idx % 10 }))).map((sp, i) => {
+              const SPEC_GRADS = [
+                'from-rose-500 to-red-600', 'from-violet-500 to-purple-600', 'from-amber-500 to-orange-600',
+                'from-pink-500 to-fuchsia-600', 'from-emerald-500 to-teal-600', 'from-sky-500 to-blue-600',
+                'from-cyan-500 to-teal-600', 'from-indigo-500 to-blue-700', 'from-slate-500 to-slate-700', 'from-orange-500 to-red-500',
+              ];
+              const grad = SPEC_GRADS[sp.color_preset] ?? 'from-primary-green to-accent-green';
               return (
-                <motion.div key={sp.slug}
+                <motion.div key={sp.id}
                   initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.06 }}
                   whileHover={{ scale: 1.05, y: -4 }}
                   className="flex-shrink-0 w-40">
-                  <Link href={`/find-doctor?speciality=${sp.title}`}
+                  <Link href={`/find-doctor?speciality=${sp.name}`}
                     className="flex flex-col items-center gap-3 p-5 bg-white border border-slate-100 rounded-3xl hover:border-primary-green/25 hover:shadow-xl hover:shadow-primary-green/8 transition-all duration-300 group text-center">
-                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300`}>
-                      <Icon className="w-7 h-7 text-white" />
+                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300 text-2xl`}>
+                      {sp.icon || <Stethoscope className="w-7 h-7 text-white" />}
                     </div>
                     <div>
-                      <h3 className="font-extrabold text-dark-navy text-sm group-hover:text-primary-green transition-colors">{sp.title}</h3>
-                      <p className="text-[10px] text-text-grey mt-1 leading-snug line-clamp-2">{sp.desc.split(',')[0]}</p>
+                      <h3 className="font-extrabold text-dark-navy text-sm group-hover:text-primary-green transition-colors">{sp.name}</h3>
+                      <p className="text-[10px] text-text-grey mt-1 leading-snug line-clamp-2">{(sp.description || '').split(',')[0]}</p>
                     </div>
                   </Link>
                 </motion.div>

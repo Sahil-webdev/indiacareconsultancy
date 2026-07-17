@@ -355,17 +355,30 @@ CREATE TABLE IF NOT EXISTS specialities (
   id           INT AUTO_INCREMENT PRIMARY KEY,
   name         VARCHAR(100)  NOT NULL UNIQUE,
   icon         VARCHAR(10)   DEFAULT '🏥',
+  description  TEXT          DEFAULT NULL,
+  symptoms     JSON          DEFAULT NULL,
+  color_preset TINYINT       NOT NULL DEFAULT 0,
   doctor_count INT           NOT NULL DEFAULT 0,
   is_active    TINYINT(1)    NOT NULL DEFAULT 1,
   created_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT IGNORE INTO specialities (name, icon, is_active) VALUES
-  ('Cardiology','❤️',1),('Neurology','🧠',1),('Orthopedics','🦴',1),
-  ('Pediatrics','👶',1),('Dermatology','🩺',1),('Gynecology','🌸',1),
-  ('Ophthalmology','👁️',1),('ENT','👂',1),('Oncology','🎗️',1),
-  ('Urology','🏥',1),('Gastroenterology','🫁',1),('Psychiatry','🧬',1),
-  ('General Surgery','⚕️',1),('Nephrology','🏥',1),('Endocrinology','💊',1);
+INSERT IGNORE INTO specialities (name, icon, description, symptoms, color_preset, is_active) VALUES
+  ('Cardiology','❤️','Comprehensive care for coronary artery disease, heart failure, arrhythmia, valve disorders, bypass surgery, and angiography.','["Chest pain","Shortness of breath","Heart palpitations","Dizziness","High BP"]',0,1),
+  ('Neurology','🧠','Expert diagnosis of brain, spinal cord, nerve, and muscle disorders. Stroke, epilepsy, Parkinson\'s, and migraines.','["Severe headaches","Numbness","Seizures","Memory loss","Muscle weakness"]',1,1),
+  ('Orthopedics','🦴','Bone, joint, ligament, and muscle health. Joint replacement, sports injuries, fractures, and spinal conditions.','["Joint pain","Back/neck pain","Swollen joints","Stiffness","Limited motion"]',2,1),
+  ('Dermatology','🩺','Skin, hair, and nail care. Acne, eczema, psoriasis, skin cancers, and premium aesthetic skin treatments.','["Rashes","Acne flare-ups","Mole changes","Hair thinning","Nail infections"]',3,1),
+  ('Gynecology','🌸','Women\'s health — reproductive system, high-risk pregnancy, fertility concerns, and menopause support.','["Pelvic pain","Irregular cycles","Pregnancy check","Hormonal swings","Fertility"]',4,1),
+  ('Pediatrics','👶','Compassionate care for newborns, children & adolescents. Vaccinations, growth monitoring, pediatric disease management.','["Childhood fevers","Growth lag","Vaccinations","Asthma/Allergies","Behavioural"]',5,1),
+  ('ENT','👂','Ear, nose, throat, sinuses, head, and neck treatment. Sleep apnea and allergy management.','["Sinus pressure","Hearing loss","Tonsil swelling","Hoarse voice","Tinnitus"]',6,1),
+  ('Ophthalmology','👁️','Comprehensive eye care — cataracts, glaucoma, retinal disorders, LASIK, and paediatric eye issues.','["Blurred vision","Eye pain","Redness","Watery eyes","Night blindness"]',7,1),
+  ('Psychiatry','🧬','Mental health and wellness — depression, anxiety, OCD, schizophrenia, and addiction management.','["Persistent sadness","Anxiety attacks","Sleep issues","Mood swings","Hallucinations"]',8,0),
+  ('Oncology','🎗️','Cancer diagnosis and treatment — chemotherapy, radiation, immunotherapy, and surgical oncology.','["Unexplained weight loss","Fatigue","Lumps","Bleeding","Persistent pain"]',9,1),
+  ('Gastroenterology','🫁','Digestive system disorders — esophagus, stomach, liver, bowel issues, endoscopy, and colonoscopy.','["Acid reflux","Bloating","Abdominal cramps","Chronic diarrhea","Jaundice"]',2,1),
+  ('Urology','🏥','Urinary tract and male reproductive system. Kidney stones, bladder control, and prostate health.','["Blood in urine","Urination pain","Kidney stone","Bladder weakness","Prostate"]',5,1),
+  ('General Surgery','⚕️','Common surgical procedures including appendectomy, hernia repair, laparoscopy, and wound care.','["Abdominal pain","Hernia bulge","Gallstones","Appendix pain","Post-op care"]',0,1),
+  ('Nephrology','🏥','Kidney disease management — CKD, dialysis, hypertension, electrolyte imbalances, and transplant care.','["Swelling in legs","Decreased urine","Fatigue","High creatinine","Dialysis need"]',6,1),
+  ('Endocrinology','💊','Hormonal and metabolic disorders — diabetes, thyroid, adrenal, pituitary, and calcium metabolism.','["Excessive thirst","Weight changes","Fatigue","Hair loss","Hormonal imbalance"]',3,1);
 
 -- 13. EMPLOYEES
 CREATE TABLE IF NOT EXISTS employees (

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { panelApi } from '@/lib/api';
 import { clearSession, getSessionToken, getSessionUser, saveSession } from '@/lib/session';
@@ -245,6 +246,14 @@ export default function PanelLoginPage() {
               }
             </motion.button>
           </form>
+
+          {/* Registration link */}
+          <div className="mt-6 text-center text-xs">
+            <span style={{ color: '#64748B' }}>Are you a Doctor or Hospital? </span>
+            <Link href="/register" className="font-bold hover:underline" style={{ color: '#25B89A' }}>
+              Register as Partner
+            </Link>
+          </div>
 
         </motion.div>
       </div>

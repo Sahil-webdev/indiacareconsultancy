@@ -8,7 +8,7 @@ import {
   Globe, Loader2, ShieldCheck, Lock,
 } from 'lucide-react';
 import { panelApi } from '@/lib/api';
-import { getSessionToken, getSessionUser, saveSession } from '@/lib/session';
+import { getSessionToken, getSessionUser, saveSession, clearSession } from '@/lib/session';
 
 const PLAN_AMOUNT = 500;
 
@@ -26,6 +26,7 @@ type PayMethod = 'upi' | 'card' | 'netbanking';
 
 export default function HospitalSubscriptionGate({ children }: { children: React.ReactNode }) {
   const [subscribed, setSubscribed] = useState<boolean | null>(null);
+  const [approved, setApproved] = useState<boolean | null>(null);
   const [payMethod, setPayMethod] = useState<PayMethod>('upi');
   const [upiId, setUpiId] = useState('');
   const [card, setCard] = useState({ number: '', expiry: '', cvv: '', name: '' });
@@ -38,9 +39,11 @@ export default function HospitalSubscriptionGate({ children }: { children: React
     async function loadStatus() {
       const user = getSessionUser();
       if (!user?.profile?.entityId) {
+        setApproved(false);
         setSubscribed(false);
         return;
       }
+      setApproved(user.profile.isApproved);
       setSubscribed(user.profile.isSubscribed);
       try {
         const plans = await panelApi<{ plans: Array<{ plan_key: string; amount: number }> }>('/api/subscriptions');
@@ -50,6 +53,11 @@ export default function HospitalSubscriptionGate({ children }: { children: React
     }
     loadStatus();
   }, []);
+
+  const handleLogout = () => {
+    clearSession();
+    window.location.href = '/login';
+  };
 
   const handlePay = async () => {
     if (payMethod === 'upi' && !upiId.trim()) return;
@@ -79,10 +87,57 @@ export default function HospitalSubscriptionGate({ children }: { children: React
     }
   };
 
-  if (subscribed === null) {
+  if (subscribed === null || approved === null) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-app)' }}>
         <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#25B89A' }} />
+      </div>
+    );
+  }
+
+  // Not approved yet → Show verification pending screen
+  if (!approved) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+        style={{ background: 'var(--bg-app)' }}>
+        <div className="absolute top-0 right-0 w-96 h-96 rounded-full blur-3xl pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 70%)' }} />
+        <div className="absolute bottom-0 left-0 w-96 h-96 rounded-full blur-3xl pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(37,184,154,0.08) 0%, transparent 70%)' }} />
+
+        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-lg rounded-3xl p-8 flex flex-col items-center text-center gap-6 shadow-2xl"
+          style={{ background: 'var(--bg-surface)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-500">
+            <ShieldCheck className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-xl font-extrabold text-white">Verification Pending</h2>
+            <p className="text-xs" style={{ color: '#64748B' }}>Your registration request is currently under review by our hospital verification team.</p>
+          </div>
+
+          <div className="panel-card w-full p-4 text-left text-xs space-y-3" style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.04)' }}>
+            <p className="font-semibold text-white">What happens next?</p>
+            <ul className="space-y-2 text-[#94A3B8]">
+              <li className="flex gap-2">⏱️ <span className="flex-1">Review usually takes <strong>48-72 business hours</strong>.</span></li>
+              <li className="flex gap-2">📞 <span className="flex-1">Our onboarding team may reach out to verify license details and bed capacity.</span></li>
+              <li className="flex gap-2">💳 <span className="flex-1">Once approved, you will see the subscription payment page here to unlock your hospital panel.</span></li>
+            </ul>
+          </div>
+
+          <div className="flex gap-3 w-full">
+            <button onClick={() => window.location.reload()}
+              className="flex-1 py-3 rounded-xl text-xs font-bold transition-all border text-white"
+              style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)' }}>
+              Refresh Status
+            </button>
+            <button onClick={handleLogout}
+              className="px-6 py-3 rounded-xl text-xs font-bold transition-all"
+              style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
+              Log Out
+            </button>
+          </div>
+        </motion.div>
       </div>
     );
   }

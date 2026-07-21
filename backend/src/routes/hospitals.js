@@ -253,4 +253,26 @@ router.patch('/:id', protect, async (req, res, next) => {
   }
 });
 
+// DELETE /api/hospitals/:id — super admin only
+router.delete('/:id', protect, async (req, res, next) => {
+  try {
+    if (!['super_admin'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Forbidden: Super admin access required' });
+    }
+    const pool = getPool();
+    // Get user_id first
+    const [rows] = await pool.execute('SELECT user_id FROM hospitals WHERE id = ? LIMIT 1', [req.params.id]);
+    if (!rows.length) {
+      return res.status(404).json({ success: false, message: 'Hospital not found' });
+    }
+    const userId = rows[0].user_id;
+
+    // Delete user (will cascade delete hospital profile)
+    await pool.execute('DELETE FROM users WHERE id = ?', [userId]);
+    res.json({ success: true, message: 'Hospital account deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

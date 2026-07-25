@@ -1,48 +1,41 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { HospitalMock, INITIAL_HOSPITALS } from '@/lib/mockData';
 import HospitalProfileClient from './HospitalProfileClient';
 import { Metadata } from 'next';
+import { SiteHospital } from '@/lib/siteTypes';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
-async function getHospital(id: string): Promise<HospitalMock | null> {
-  // First try to find in mock data (covers IDs like hosp_1)
-  const mockHospital = INITIAL_HOSPITALS.find(h => h.id === id);
-
-  // Then try backend API
+async function getHospital(id: string): Promise<SiteHospital | null> {
   try {
     const response = await fetch(`${API_BASE}/api/hospitals/${id}`, { cache: 'no-store' });
-    if (response.ok) {
-      const data = await response.json();
-      const hospital = data.hospital;
-      return {
-        id: hospital.id,
-        name: hospital.name,
-        email: hospital.email,
-        phone: hospital.phone,
-        image: hospital.image,
-        registrationDetails: hospital.registrationDetails,
-        address: hospital.address,
-        location: hospital.location,
-        rating: hospital.rating,
-        departments: hospital.departments || [],
-        facilities: hospital.facilities || [],
-        isApproved: hospital.isApproved,
-        subscriptionPlan: hospital.isSubscribed ? 'Premium' : 'Basic',
-        opdTimings: hospital.opdTimings || '',
-        emergencyContact: hospital.emergencyContact || '',
-        gallery: hospital.gallery || [],
-        userId: hospital.userId || undefined,
-        doctors: [],
-      };
-    }
+    if (!response.ok) return null;
+    const data = await response.json();
+    const hospital = data.hospital;
+    return {
+      id: hospital.id,
+      name: hospital.name,
+      email: hospital.email,
+      phone: hospital.phone,
+      image: hospital.image,
+      registrationDetails: hospital.registrationDetails,
+      address: hospital.address,
+      location: hospital.location,
+      rating: hospital.rating,
+      departments: hospital.departments || [],
+      facilities: hospital.facilities || [],
+      isApproved: hospital.isApproved,
+      isSubscribed: hospital.isSubscribed,
+      subscriptionPlan: hospital.isSubscribed ? 'Premium' : 'Basic',
+      opdTimings: hospital.opdTimings || '',
+      emergencyContact: hospital.emergencyContact || '',
+      gallery: hospital.gallery || [],
+      userId: hospital.userId || undefined,
+      doctors: [],
+    };
   } catch {
-    // backend unavailable — fall through to mock
+    return null;
   }
-
-  // Fallback to mock data
-  return mockHospital ?? null;
 }
 
 interface PageProps {

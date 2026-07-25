@@ -11,6 +11,7 @@ type HospitalProfile = {
   phone: string;
   emergencyContact: string;
   website: string;
+  image: string;
   registrationDetails: string;
   hospitalType: string;
   address: string;
@@ -62,13 +63,14 @@ export default function HospitalProfilePage() {
     setError('');
     setMessage('');
     try {
-      await panelApi(`/api/hospitals/${profile.id}`, {
+      const response = await panelApi<{ hospital?: HospitalProfile }>(`/api/hospitals/${profile.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
           name: profile.name,
           phone: profile.phone,
           emergencyContact: profile.emergencyContact,
           website: profile.website,
+          image: profile.image,
           registrationDetails: profile.registrationDetails,
           hospitalType: profile.hospitalType,
           totalBeds: profile.totalBeds,
@@ -81,6 +83,12 @@ export default function HospitalProfilePage() {
           accreditations: toList(accreditationsText),
         }),
       });
+      if (response.hospital) {
+        setProfile(response.hospital);
+        setDepartmentsText(response.hospital.departments.join(', '));
+        setFacilitiesText(response.hospital.facilities.join(', '));
+        setAccreditationsText(response.hospital.accreditations.join(', '));
+      }
       setMessage('Hospital profile changes submitted for super admin review.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -119,6 +127,7 @@ export default function HospitalProfilePage() {
             ['Phone', 'phone'],
             ['Emergency Contact', 'emergencyContact'],
             ['Website', 'website'],
+            ['Hospital Image URL', 'image'],
             ['Registration Number', 'registrationDetails'],
             ['Hospital Type', 'hospitalType'],
             ['City', 'location'],

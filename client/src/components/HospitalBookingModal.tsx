@@ -1,6 +1,7 @@
 'use client';
 
 import React, { startTransition, useState, useEffect, useRef } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -26,9 +27,10 @@ import {
   UploadCloud,
 } from 'lucide-react';
 import { siteApi } from '@/lib/api';
-import { HospitalMock, INITIAL_DOCTORS } from '@/lib/mockData';
+import { SiteHospital } from '@/lib/siteTypes';
+import { usePatientAuth } from '@/lib/patientAuth';
 
-export interface BookingHospital extends HospitalMock {}
+export interface BookingHospital extends SiteHospital {}
 
 interface BookingFormData {
   patientName: string;
@@ -71,6 +73,9 @@ const BOOKED_SLOTS = ['9:30 AM', '11:00 AM', '3:00 PM'];
 
 export default function HospitalBookingModal({ hospital, isOpen, onClose }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isLoggedIn, patient } = usePatientAuth();
 
   const [form, setForm] = useState<BookingFormData>({
     patientName: '',
@@ -116,16 +121,21 @@ export default function HospitalBookingModal({ hospital, isOpen, onClose }: Prop
   };
 
   // Find affiliated doctors of this hospital
-  const affiliatedDoctors = hospital ? INITIAL_DOCTORS.filter(doc => doc.hospitalId === hospital.id) : [];
+  const affiliatedDoctors = hospital?.affiliatedDoctors || [];
 
   useEffect(() => {
     if (isOpen && hospital) {
+      if (!isLoggedIn) {
+        onClose();
+        router.push(`/login?redirect=${encodeURIComponent(pathname || '/')}`);
+        return;
+      }
       startTransition(() => {
         setForm({
-          patientName: '',
-          mobile: '',
-          age: '',
-          gender: '',
+          patientName: patient?.name || '',
+          mobile: patient?.mobile?.replace(/\D/g, '').slice(-10) || '',
+          age: patient?.age || '',
+          gender: patient?.gender || '',
           appointmentDate: '',
           timeSlot: '',
           department: hospital.departments[0] || '',
@@ -139,7 +149,7 @@ export default function HospitalBookingModal({ hospital, isOpen, onClose }: Prop
         setReportFiles([]);
       });
     }
-  }, [isOpen, hospital]);
+  }, [hospital, isLoggedIn, isOpen, onClose, pathname, patient, router]);
 
   useEffect(() => {
     if (isOpen) {
@@ -189,7 +199,7 @@ export default function HospitalBookingModal({ hospital, isOpen, onClose }: Prop
           doctorId: form.doctorId || null,
           patientName: form.patientName,
           patientPhone: form.mobile,
-          patientEmail: '',
+          patientEmail: patient?.email || '',
           appointmentDate: form.appointmentDate,
           timeSlot: form.timeSlot,
           concern: `${form.department} - ${form.reason}`,

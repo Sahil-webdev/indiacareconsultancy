@@ -1,6 +1,7 @@
 'use client';
 
 import React, { startTransition, useState, useEffect, useRef } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -26,6 +27,7 @@ import {
   UploadCloud,
 } from 'lucide-react';
 import { siteApi } from '@/lib/api';
+import { usePatientAuth } from '@/lib/patientAuth';
 
 /* ─────────────────────────────────────────
    Types
@@ -90,6 +92,9 @@ const BOOKED_SLOTS = ['9:30 AM', '11:00 AM', '3:00 PM']; // Demo: pre-booked
 ───────────────────────────────────────── */
 export default function BookingModal({ doctor, isOpen, onClose }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isLoggedIn, patient } = usePatientAuth();
 
   const [form, setForm] = useState<BookingFormData>({
     patientName: '',
@@ -135,12 +140,17 @@ export default function BookingModal({ doctor, isOpen, onClose }: Props) {
   // Reset form when modal opens for a new doctor
   useEffect(() => {
     if (isOpen) {
+      if (!isLoggedIn) {
+        onClose();
+        router.push(`/login?redirect=${encodeURIComponent(pathname || '/')}`);
+        return;
+      }
       startTransition(() => {
         setForm({
-          patientName: '',
-          mobile: '',
-          age: '',
-          gender: '',
+          patientName: patient?.name || '',
+          mobile: patient?.mobile?.replace(/\D/g, '').slice(-10) || '',
+          age: patient?.age || '',
+          gender: patient?.gender || '',
           appointmentDate: '',
           timeSlot: '',
           reason: '',
@@ -152,7 +162,7 @@ export default function BookingModal({ doctor, isOpen, onClose }: Props) {
         setReportFiles([]);
       });
     }
-  }, [isOpen, doctor?.id]);
+  }, [isOpen, doctor?.id, isLoggedIn, onClose, pathname, patient, router]);
 
   // Lock body scroll when open
   useEffect(() => {
@@ -196,16 +206,16 @@ export default function BookingModal({ doctor, isOpen, onClose }: Props) {
 
     setSubmitting(true);
 
-    await siteApi('/api/appointments', {
-      method: 'POST',
-      body: JSON.stringify({
-        doctorId: doctor.id,
-        patientName: form.patientName,
-        patientPhone: form.mobile,
-        patientEmail: '',
-        appointmentDate: form.appointmentDate,
-        timeSlot: form.timeSlot,
-        concern: form.reason,
+      await siteApi('/api/appointments', {
+        method: 'POST',
+        body: JSON.stringify({
+          doctorId: doctor.id,
+          patientName: form.patientName,
+          patientPhone: form.mobile,
+          patientEmail: patient?.email || '',
+          appointmentDate: form.appointmentDate,
+          timeSlot: form.timeSlot,
+          concern: form.reason,
       }),
     });
 

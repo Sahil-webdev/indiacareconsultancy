@@ -4,18 +4,21 @@ const { getPool } = require('../config/mysql');
 const { fetchOne, fetchRows } = require('../services/mysqlUtils');
 const { formatHospital } = require('../services/entityFormatters');
 const { createUserAccount } = require('../services/accountProvisioning');
+const { submitHospitalProfileChanges } = require('../services/profileChangeWorkflow');
 
 const router = express.Router();
 
 const baseHospitalSelect = `
   SELECT
     h.*,
+    u.is_active AS account_is_active,
     COALESCE((SELECT JSON_ARRAYAGG(department) FROM hospital_departments WHERE hospital_id = h.id), JSON_ARRAY()) AS departments,
     COALESCE((SELECT JSON_ARRAYAGG(facility) FROM hospital_facilities WHERE hospital_id = h.id), JSON_ARRAY()) AS facilities,
     COALESCE((SELECT JSON_ARRAYAGG(accreditation) FROM hospital_accreditations WHERE hospital_id = h.id), JSON_ARRAY()) AS accreditations,
     (SELECT COUNT(*) FROM hospital_doctors WHERE hospital_id = h.id) AS doctor_count,
     (SELECT COUNT(*) FROM profile_change_requests WHERE entity_type = 'hospital' AND entity_id = h.id AND status = 'Pending') AS pending_change_requests
   FROM hospitals h
+  INNER JOIN users u ON u.id = h.user_id
 `;
 
 async function getHospitalById(id) {
@@ -39,7 +42,14 @@ router.get('/', async (req, res, next) => {
       conditions.push('h.is_subscribed = 1');
     }
     if (approval === 'approved') conditions.push('h.is_approved = 1');
-    if (approval === 'pending') conditions.push('h.is_approved = 0');
+    if (approval === 'pending') {
+      conditions.push('h.is_approved = 0');
+      conditions.push('u.is_active = 1');
+    }
+    if (approval === 'rejected') {
+      conditions.push('h.is_approved = 0');
+      conditions.push('u.is_active = 0');
+    }
     if (location) {
       conditions.push('h.city LIKE ?');
       params.push(`%${location}%`);
@@ -163,6 +173,9 @@ router.get('/:id', async (req, res, next) => {
     if (!hospital) {
       return res.status(404).json({ success: false, message: 'Hospital not found' });
     }
+    if (!hospital.isApproved || !hospital.isSubscribed) {
+      return res.status(404).json({ success: false, message: 'Hospital not found' });
+    }
     res.json({ success: true, hospital });
   } catch (error) {
     next(error);
@@ -179,30 +192,48 @@ router.patch('/:id', protect, async (req, res, next) => {
 
     const isAdmin = ['super_admin', 'consultant'].includes(req.user.role);
     const updates = req.body;
+    const approvalDecision = updates.approvalDecision;
 
     if (!isAdmin) {
-      const editableFields = ['name', 'phone', 'emergencyContact', 'website', 'registrationDetails', 'address', 'location', 'opdTimings', 'about', 'totalBeds', 'hospitalType'];
-      for (const field of editableFields) {
-        if (updates[field] !== undefined && String(updates[field]) !== String(hospital[field] ?? '')) {
-          await pool.execute(
-            `INSERT INTO profile_change_requests (entity_type, entity_id, field_name, old_value, new_value, status)
-             VALUES ('hospital', ?, ?, ?, ?, 'Pending')`,
-            [req.params.id, field, hospital[field] ?? null, String(updates[field])]
-          );
-        }
+      if (req.user.role !== 'hospital' || hospital.userId !== String(req.user.id)) {
+        return res.status(403).json({ success: false, message: 'Forbidden: You can only update your own hospital profile' });
       }
-      return res.json({ success: true, message: 'Profile update submitted for review' });
+
+      const result = await submitHospitalProfileChanges({
+        hospitalId: req.params.id,
+        actorUser: req.user,
+        updates,
+        currentHospital: hospital,
+      });
+
+      res.locals.activityLog = {
+        action: result.changed ? 'Hospital profile change submitted' : 'Hospital profile save attempted',
+        entityType: 'hospital',
+        entityId: req.params.id,
+        category: 'Verification',
+        dashboardHref: '/dashboard/super-admin/verification/profile-changes',
+        description: result.changed
+          ? `${hospital.name} submitted profile updates for review`
+          : `${hospital.name} opened save flow without any actual changes`,
+      };
+
+      return res.json({
+        success: true,
+        message: result.changed ? 'Profile update submitted for review' : 'No profile changes detected',
+        hospital: result.hospital,
+      });
     }
 
     await pool.execute(
       `UPDATE hospitals
-       SET name = ?, phone = ?, emergency_contact = ?, website = ?, registration_no = ?, hospital_type = ?, total_beds = ?, address = ?, city = ?, opd_timings = ?, about = ?, rating = ?, is_approved = ?, is_subscribed = ?, subscription_paid_at = ?, subscription_ends_at = ?
+       SET name = ?, phone = ?, emergency_contact = ?, website = ?, image = ?, registration_no = ?, hospital_type = ?, total_beds = ?, address = ?, city = ?, opd_timings = ?, about = ?, rating = ?, is_approved = ?, is_subscribed = ?, subscription_paid_at = ?, subscription_ends_at = ?
        WHERE id = ?`,
       [
         updates.name ?? hospital.name,
         updates.phone ?? hospital.phone,
         updates.emergencyContact ?? hospital.emergencyContact,
         updates.website ?? hospital.website ?? null,
+        updates.image ?? hospital.image,
         updates.registrationDetails ?? hospital.registrationDetails,
         updates.hospitalType ?? hospital.hospitalType,
         updates.totalBeds ?? hospital.totalBeds,
@@ -211,13 +242,24 @@ router.patch('/:id', protect, async (req, res, next) => {
         updates.opdTimings ?? hospital.opdTimings,
         updates.about ?? hospital.about,
         updates.rating ?? hospital.rating,
-        updates.isApproved === undefined ? (hospital.isApproved ? 1 : 0) : (updates.isApproved ? 1 : 0),
+        approvalDecision === 'approved'
+          ? 1
+          : approvalDecision === 'rejected' || approvalDecision === 'pending'
+            ? 0
+            : updates.isApproved === undefined ? (hospital.isApproved ? 1 : 0) : (updates.isApproved ? 1 : 0),
         updates.isSubscribed === undefined ? (hospital.isSubscribed ? 1 : 0) : (updates.isSubscribed ? 1 : 0),
         updates.subscriptionPaidAt ?? hospital.subscriptionPaidAt ?? null,
         updates.subscriptionEndsAt ?? hospital.subscriptionEndsAt ?? null,
         req.params.id,
       ]
     );
+
+    if (approvalDecision === 'approved' || approvalDecision === 'pending' || approvalDecision === 'rejected') {
+      await pool.execute(
+        'UPDATE users SET is_active = ? WHERE id = ?',
+        [approvalDecision === 'rejected' ? 0 : 1, hospital.userId]
+      );
+    }
 
     if (Array.isArray(updates.departments)) {
       await pool.execute('DELETE FROM hospital_departments WHERE hospital_id = ?', [req.params.id]);
@@ -237,7 +279,7 @@ router.patch('/:id', protect, async (req, res, next) => {
         await pool.execute('INSERT INTO hospital_accreditations (hospital_id, accreditation) VALUES (?, ?)', [req.params.id, value]);
       }
     }
-    if (updates.approvePendingChanges) {
+    if (updates.approvePendingChanges || approvalDecision === 'approved') {
       await pool.execute(
         `UPDATE profile_change_requests
          SET status = 'Approved', reviewed_by = ?, reviewed_at = NOW()
@@ -245,8 +287,35 @@ router.patch('/:id', protect, async (req, res, next) => {
         [req.user.id, req.params.id]
       );
     }
+    if (approvalDecision === 'rejected') {
+      await pool.execute(
+        `UPDATE profile_change_requests
+         SET status = 'Rejected', reviewed_by = ?, reviewed_at = NOW()
+         WHERE entity_type = 'hospital' AND entity_id = ? AND status = 'Pending'`,
+        [req.user.id, req.params.id]
+      );
+    }
 
     const updatedHospital = await getHospitalById(req.params.id);
+    if (approvalDecision === 'approved' || approvalDecision === 'rejected') {
+      res.locals.activityLog = {
+        action: approvalDecision === 'approved' ? 'Hospital approval updated' : 'Hospital rejected',
+        entityType: 'hospital',
+        entityId: req.params.id,
+        category: 'Verification',
+        dashboardHref: '/dashboard/super-admin/verification/hospital-approvals',
+        description: `${updatedHospital?.name || hospital.name} was ${approvalDecision}`,
+      };
+    } else if (updates.approvePendingChanges) {
+      res.locals.activityLog = {
+        action: 'Hospital profile changes approved',
+        entityType: 'hospital',
+        entityId: req.params.id,
+        category: 'Verification',
+        dashboardHref: '/dashboard/super-admin/verification/profile-changes',
+        description: `Pending profile changes approved for ${updatedHospital?.name || hospital.name}`,
+      };
+    }
     res.json({ success: true, hospital: updatedHospital });
   } catch (error) {
     next(error);

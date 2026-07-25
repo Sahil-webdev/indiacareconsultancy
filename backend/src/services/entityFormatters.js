@@ -1,6 +1,9 @@
 const { boolFromDb, parseJson } = require('./mysqlUtils');
 
 function formatDoctor(row) {
+  const isActive = boolFromDb(row.account_is_active ?? 1);
+  const isApproved = boolFromDb(row.is_approved);
+  const approvalStatus = isApproved ? 'approved' : (isActive ? 'pending' : 'rejected');
   return {
     id: String(row.id),
     userId: row.user_id ? String(row.user_id) : null,
@@ -21,8 +24,10 @@ function formatDoctor(row) {
     gender: row.gender,
     availability: parseJson(row.availability, []),
     consultationType: row.consultation_type,
-    isApproved: boolFromDb(row.is_approved),
+    isApproved,
     isSubscribed: boolFromDb(row.is_subscribed),
+    isActive,
+    approvalStatus,
     subscriptionEndsAt: row.subscription_ends_at,
     subscriptionPaidAt: row.subscription_paid_at,
     bio: row.bio || '',
@@ -38,6 +43,9 @@ function formatDoctor(row) {
 }
 
 function formatHospital(row) {
+  const isActive = boolFromDb(row.account_is_active ?? 1);
+  const isApproved = boolFromDb(row.is_approved);
+  const approvalStatus = isApproved ? 'approved' : (isActive ? 'pending' : 'rejected');
   return {
     id: String(row.id),
     userId: row.user_id ? String(row.user_id) : null,
@@ -56,8 +64,10 @@ function formatHospital(row) {
     departments: parseJson(row.departments, []),
     facilities: parseJson(row.facilities, []),
     accreditations: parseJson(row.accreditations, []),
-    isApproved: boolFromDb(row.is_approved),
+    isApproved,
     isSubscribed: boolFromDb(row.is_subscribed),
+    isActive,
+    approvalStatus,
     subscriptionEndsAt: row.subscription_ends_at,
     subscriptionPaidAt: row.subscription_paid_at,
     opdTimings: row.opd_timings || '',

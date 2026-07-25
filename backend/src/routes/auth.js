@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { protect } = require('../middleware/auth');
 const { fetchOne } = require('../services/mysqlUtils');
+const { buildDevice, buildIpAddress, recordAuditLog } = require('../services/auditLogger');
 
 const router = express.Router();
 
@@ -29,6 +30,27 @@ router.post('/login', async (req, res, next) => {
     }
 
     const token = signToken(user);
+    await recordAuditLog({
+      userId: user.id,
+      action: 'Panel login',
+      entityType: 'auth',
+      entityId: user.id,
+      ipAddress: buildIpAddress(req),
+      details: {
+        role: user.role,
+        category: 'Security',
+        dashboardHref: user.role === 'super_admin'
+          ? '/dashboard/super-admin'
+          : user.role === 'consultant'
+            ? '/dashboard/consultant'
+            : user.role === 'doctor'
+              ? '/dashboard/doctor'
+              : '/dashboard/hospital',
+        description: `${user.name} logged into the panel`,
+        device: buildDevice(req),
+      },
+    });
+
     res.json({
       success: true,
       token,

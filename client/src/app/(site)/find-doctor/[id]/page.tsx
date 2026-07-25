@@ -1,12 +1,12 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { DoctorMock } from '@/lib/mockData';
 import DoctorProfileClient from './DoctorProfileClient';
 import { Metadata } from 'next';
+import { SiteDoctor } from '@/lib/siteTypes';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
-async function getDoctor(id: string): Promise<DoctorMock | null> {
+async function getDoctor(id: string): Promise<SiteDoctor | null> {
   try {
     const response = await fetch(`${API_BASE}/api/doctors/${id}`, { cache: 'no-store' });
     if (!response.ok) return null;
@@ -36,7 +36,7 @@ async function getDoctor(id: string): Promise<DoctorMock | null> {
       languages: doctor.languages || [],
       services: doctor.services || [],
       awards: doctor.awards || [],
-      hospitalId: '',
+      hospitalName: doctor.hospitalName || '',
       userId: doctor.userId || undefined,
     };
   } catch {

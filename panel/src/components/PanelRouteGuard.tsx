@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { panelApi } from '@/lib/api';
-import { clearSession, getSessionToken, getSessionUser, type PanelUser } from '@/lib/session';
+import { clearSession, getSessionToken, getSessionUser, saveSessionUser, type PanelUser } from '@/lib/session';
 
 type Role = PanelUser['role'];
 
@@ -40,6 +40,8 @@ export default function PanelRouteGuard({ allowedRoles, children }: PanelRouteGu
       try {
         const response = await panelApi<{ success: boolean; user: PanelUser }>('/api/auth/me');
         if (!active) return;
+
+        saveSessionUser(response.user);
 
         if (!allowedRoles.includes(response.user.role)) {
           router.replace(getDashboardPath(response.user.role));

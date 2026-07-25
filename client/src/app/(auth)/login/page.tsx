@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart, LogIn, Lock, Mail, Eye, EyeOff, BadgeCheck,
@@ -10,6 +10,7 @@ import {
   ShieldCheck, ExternalLink, AlertCircle, CheckCircle2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { usePatientAuth, MOCK_PATIENTS, MOCK_PASSWORD } from '@/lib/patientAuth';
 
 /* ─── Mock auth — patient only ─── */
 const MOCK_PATIENT = { email: 'patient@indiacare.com', phone: '+91 98765 43210', password: 'password123' };
@@ -40,7 +41,9 @@ function BrandCard({ delay, icon: Icon, color, label, sub, className }: {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { login } = usePatientAuth();
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -51,6 +54,7 @@ export default function LoginPage() {
   const [otpMode, setOtpMode] = useState(false);
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const redirectTo = searchParams.get('redirect') || '/';
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,9 +72,10 @@ export default function LoginPage() {
         password === MOCK_PATIENT.password;
 
       if (isMatch) {
+        login(MOCK_PATIENTS[0]);
         setSuccess(true);
         toast('success', 'Welcome Back!', 'Redirecting to your patient dashboard…');
-        setTimeout(() => router.push('/'), 1200);
+        setTimeout(() => router.push(redirectTo), 1200);
       } else {
         setError('Invalid credentials. Use patient@indiacare.com / password123 to demo.');
       }
@@ -91,9 +96,10 @@ export default function LoginPage() {
   const handleOtpVerify = (e: React.FormEvent) => {
     e.preventDefault();
     if (otp !== '123456') { setError('Invalid OTP. Use 123456 for demo.'); return; }
+    login(MOCK_PATIENTS[0]);
     setSuccess(true);
     toast('success', 'OTP Verified!', 'Redirecting to your dashboard…');
-    setTimeout(() => router.push('/dashboard/patient'), 1200);
+    setTimeout(() => router.push(redirectTo), 1200);
   };
 
   return (

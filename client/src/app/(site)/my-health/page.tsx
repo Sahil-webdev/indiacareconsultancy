@@ -13,7 +13,9 @@ import {
   Sparkles, Target, Award, Camera, Trash2,
 } from 'lucide-react';
 import { usePatientAuth } from '@/lib/patientAuth';
-import { INITIAL_APPOINTMENTS, INITIAL_DOCTORS, INITIAL_HOSPITALS } from '@/lib/mockData';
+import { INITIAL_APPOINTMENTS } from '@/lib/mockData';
+import { siteApi } from '@/lib/api';
+import { SiteDoctor, SiteHospital } from '@/lib/siteTypes';
 
 type Tab = 'overview' | 'appointments' | 'doctors' | 'hospitals' | 'reports' | 'profile';
 
@@ -38,11 +40,41 @@ export default function MyHealthPage() {
   const router = useRouter();
   const { patient, isLoggedIn, logout, updateProfile } = usePatientAuth();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [doctors, setDoctors] = useState<SiteDoctor[]>([]);
+  const [hospitals, setHospitals] = useState<SiteHospital[]>([]);
 
   // Redirect to home if not logged in
   useEffect(() => {
     if (!isLoggedIn) router.replace('/');
   }, [isLoggedIn, router]);
+
+  useEffect(() => {
+    async function loadProfiles() {
+      try {
+        const [doctorResponse, hospitalResponse] = await Promise.all([
+          siteApi<{ doctors: Array<Omit<SiteDoctor, 'subscriptionPlan'> & { isSubscribed?: boolean }> }>('/api/doctors'),
+          siteApi<{ hospitals: Array<Omit<SiteHospital, 'subscriptionPlan'> & { isSubscribed?: boolean }> }>('/api/hospitals'),
+        ]);
+
+        setDoctors((doctorResponse.doctors || []).map((doctor) => ({
+          ...doctor,
+          subscriptionPlan: doctor.isSubscribed ? 'Premium' : 'Basic',
+          hospitalName: doctor.hospitalName || '',
+        })));
+        setHospitals((hospitalResponse.hospitals || []).map((hospital) => ({
+          ...hospital,
+          subscriptionPlan: hospital.isSubscribed ? 'Premium' : 'Basic',
+        })));
+      } catch {
+        setDoctors([]);
+        setHospitals([]);
+      }
+    }
+
+    if (isLoggedIn) {
+      loadProfiles();
+    }
+  }, [isLoggedIn]);
 
   if (!isLoggedIn || !patient) {
     return (
@@ -141,8 +173,8 @@ export default function MyHealthPage() {
             >
               {[
                 { icon: Calendar,    value: INITIAL_APPOINTMENTS.length.toString(), label: 'Appointments' },
-                { icon: Stethoscope, value: '4',  label: 'Suggested Doctors' },
-                { icon: Building2,   value: '3',  label: 'Partner Hospitals' },
+                { icon: Stethoscope, value: doctors.slice(0, 4).length.toString(),  label: 'Suggested Doctors' },
+                { icon: Building2,   value: hospitals.slice(0, 3).length.toString(),  label: 'Partner Hospitals' },
               ].map((s, i) => (
                 <div key={i} className="flex items-center gap-2.5 bg-white/10 border border-white/15 backdrop-blur rounded-2xl px-4 py-2.5">
                   <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center">
@@ -197,10 +229,10 @@ export default function MyHealthPage() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
           >
-            {activeTab === 'overview'     && <OverviewTab patient={patient} onTabChange={setActiveTab} />}
-            {activeTab === 'appointments' && <AppointmentsTab patient={patient} />}
-            {activeTab === 'doctors'      && <DoctorsTab />}
-            {activeTab === 'hospitals'    && <HospitalsTab />}
+            {activeTab === 'overview'     && <OverviewTab patient={patient} onTabChange={setActiveTab} doctors={doctors} hospitals={hospitals} />}
+            {activeTab === 'appointments' && <AppointmentsTab patient={patient} doctors={doctors} hospitals={hospitals} />}
+            {activeTab === 'doctors'      && <DoctorsTab doctors={doctors} />}
+            {activeTab === 'hospitals'    && <HospitalsTab hospitals={hospitals} />}
             {activeTab === 'reports'      && <ReportsTab />}
             {activeTab === 'profile'      && <ProfileTab patient={patient} updateProfile={updateProfile} />}
           </motion.div>
@@ -232,18 +264,20 @@ export default function MyHealthPage() {
 /* ════════════════════════════════════════
    OVERVIEW TAB
 ════════════════════════════════════════ */
-function OverviewTab({ patient, onTabChange }: {
+function OverviewTab({ patient, onTabChange, doctors, hospitals }: {
   patient: ReturnType<typeof usePatientAuth>['patient'] & object;
   onTabChange: (t: Tab) => void;
+  doctors: SiteDoctor[];
+  hospitals: SiteHospital[];
 }) {
   const appointments = INITIAL_APPOINTMENTS;
   const upcomingApt = appointments[0];
-  const aptDoctor = upcomingApt ? INITIAL_DOCTORS.find(d => d.id === upcomingApt.doctorId) : null;
+  const aptDoctor = upcomingApt ? doctors.find((doctor) => doctor.id === upcomingApt.doctorId) : null;
 
   const statCards = [
     { icon: Calendar, label: 'Total Appointments', value: appointments.length, color: 'from-blue-500 to-blue-600', bg: 'bg-blue-50', text: 'text-blue-600' },
-    { icon: Stethoscope, label: 'Suggested Doctors', value: 4, color: 'from-primary-green to-dark-green', bg: 'bg-soft-green', text: 'text-primary-green' },
-    { icon: Building2, label: 'Partner Hospitals', value: 3, color: 'from-violet-500 to-violet-600', bg: 'bg-violet-50', text: 'text-violet-600' },
+    { icon: Stethoscope, label: 'Suggested Doctors', value: doctors.slice(0, 4).length, color: 'from-primary-green to-dark-green', bg: 'bg-soft-green', text: 'text-primary-green' },
+    { icon: Building2, label: 'Partner Hospitals', value: hospitals.slice(0, 3).length, color: 'from-violet-500 to-violet-600', bg: 'bg-violet-50', text: 'text-violet-600' },
     { icon: FileText, label: 'Medical Reports', value: 0, color: 'from-amber-500 to-orange-500', bg: 'bg-amber-50', text: 'text-amber-600' },
   ];
 
@@ -399,7 +433,7 @@ function OverviewTab({ patient, onTabChange }: {
           </button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
-          {INITIAL_DOCTORS.slice(0, 4).map((doc, i) => (
+          {doctors.slice(0, 4).map((doc, i) => (
             <motion.div
               key={doc.id}
               initial={{ opacity: 0, y: 16 }}
@@ -436,7 +470,7 @@ function OverviewTab({ patient, onTabChange }: {
 /* ════════════════════════════════════════
    APPOINTMENTS TAB
 ════════════════════════════════════════ */
-function AppointmentsTab({ patient }: { patient: NonNullable<ReturnType<typeof usePatientAuth>['patient']> }) {
+function AppointmentsTab({ patient, doctors, hospitals }: { patient: NonNullable<ReturnType<typeof usePatientAuth>['patient']>; doctors: SiteDoctor[]; hospitals: SiteHospital[] }) {
   const appointments = INITIAL_APPOINTMENTS;
 
   if (appointments.length === 0) return <EmptyState icon={Calendar} title="No Appointments Yet" desc="Book a consultation with a verified doctor through India Care." action={{ label: 'Book Now', href: '/find-doctor' }} />;
@@ -451,8 +485,8 @@ function AppointmentsTab({ patient }: { patient: NonNullable<ReturnType<typeof u
       </motion.div>
 
       {appointments.map((apt, i) => {
-        const doc = INITIAL_DOCTORS.find(d => d.id === apt.doctorId);
-        const hosp = INITIAL_HOSPITALS.find(h => h.id === apt.hospitalId);
+        const doc = doctors.find((doctor) => doctor.id === apt.doctorId);
+        const hosp = hospitals.find((hospital) => hospital.id === apt.hospitalId);
         return (
           <motion.div key={apt.id} variants={fadeUp}
             className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md hover:border-primary-green/15 transition-all duration-300"
@@ -506,7 +540,7 @@ function AppointmentsTab({ patient }: { patient: NonNullable<ReturnType<typeof u
 /* ════════════════════════════════════════
    SUGGESTED DOCTORS TAB
 ════════════════════════════════════════ */
-function DoctorsTab() {
+function DoctorsTab({ doctors }: { doctors: SiteDoctor[] }) {
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="flex flex-col gap-5">
       <motion.div variants={fadeUp} className="flex items-center justify-between">
@@ -520,7 +554,7 @@ function DoctorsTab() {
       </motion.div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-5">
-        {INITIAL_DOCTORS.map((doc, i) => (
+        {doctors.map((doc, i) => (
           <motion.div key={doc.id} variants={fadeUp}
             className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 flex gap-4 hover:shadow-md hover:border-primary-green/20 transition-all duration-300 group"
           >
@@ -569,7 +603,7 @@ function DoctorsTab() {
 /* ════════════════════════════════════════
    HOSPITALS TAB
 ════════════════════════════════════════ */
-function HospitalsTab() {
+function HospitalsTab({ hospitals }: { hospitals: SiteHospital[] }) {
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="flex flex-col gap-5">
       <motion.div variants={fadeUp} className="flex items-center justify-between">
@@ -583,7 +617,7 @@ function HospitalsTab() {
       </motion.div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {INITIAL_HOSPITALS.map((hosp, i) => (
+        {hospitals.map((hosp, i) => (
           <motion.div key={hosp.id} variants={fadeUp}
             className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md hover:border-primary-green/15 transition-all duration-300 group"
           >

@@ -10,6 +10,11 @@ const disabledLegacyAccessEmails = [
   'consultant@indiacare.com',
 ];
 
+const removableDemoEntityEmails = [
+  'doctor.test.login@example.com',
+  'hospital.test.login@example.com',
+];
+
 const hospitalSeeds = [
   {
     email: 'contact@apollo-delhi.com',
@@ -428,17 +433,24 @@ async function disableLegacyAccess(pool) {
   }
 }
 
+async function removeSeededDoctorAndHospitalAccounts(pool) {
+  const seededEmails = [
+    ...hospitalSeeds.map((hospital) => hospital.email),
+    ...doctorSeeds.map((doctor) => doctor.email),
+    ...removableDemoEntityEmails,
+  ];
+
+  for (const email of seededEmails) {
+    await pool.execute('DELETE FROM users WHERE email = ?', [email]);
+  }
+}
+
 async function ensureSeedData() {
   const pool = getPool();
   for (const user of demoUsers) {
     await ensureUser(pool, user);
   }
-  for (const hospital of hospitalSeeds) {
-    await ensureHospital(pool, hospital);
-  }
-  for (const doctor of doctorSeeds) {
-    await ensureDoctor(pool, doctor);
-  }
+  await removeSeededDoctorAndHospitalAccounts(pool);
   await ensureLeadSeed(pool);
   await ensureAppointmentSeed(pool);
   await disableLegacyAccess(pool);

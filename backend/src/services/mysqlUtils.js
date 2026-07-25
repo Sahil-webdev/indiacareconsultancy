@@ -3,6 +3,7 @@ const { getPool } = require('../config/mysql');
 function parseJson(value, fallback = []) {
   if (!value) return fallback;
   if (Array.isArray(value)) return value;
+  if (typeof value === 'object') return value;
   try {
     return JSON.parse(value);
   } catch {

@@ -27,7 +27,7 @@ import {
   ChevronLeft,
   MessageSquare
 } from 'lucide-react';
-import { DoctorMock, HospitalMock, INITIAL_DOCTORS, INITIAL_HOSPITALS } from '@/lib/mockData';
+import { SiteDoctor, SiteHospital } from '@/lib/siteTypes';
 import BookingModal, { BookingDoctor } from '@/components/BookingModal';
 import { siteApi } from '@/lib/api';
 
@@ -44,7 +44,7 @@ const FILTER_CHIP_DEFS: FilterChipDef[] = [
   {
     key: 'location',
     label: 'Location',
-    options: Array.from(new Set(INITIAL_DOCTORS.map(d => d.location))).map(l => ({ value: l, label: l })),
+    options: [],
   },
   {
     key: 'experience',
@@ -114,7 +114,7 @@ function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: str
    Doctor Match Score
 ───────────────────────────────────────── */
 function MatchScore({ doc, selectedLocation, selectedFeeRange }: {
-  doc: typeof INITIAL_DOCTORS[0];
+  doc: SiteDoctor;
   selectedLocation: string;
   selectedFeeRange: string;
 }) {
@@ -233,7 +233,7 @@ function FilterChip({ def, value, onChange }: {
    Doctor Card (Premium Horizontal)
 ───────────────────────────────────────── */
 function DoctorCard({ doc, index, selectedLocation, selectedFeeRange, hospitalName, onBook }: {
-  doc: typeof INITIAL_DOCTORS[0];
+  doc: SiteDoctor;
   index: number;
   selectedLocation: string;
   selectedFeeRange: string;
@@ -403,8 +403,8 @@ function DoctorCard({ doc, index, selectedLocation, selectedFeeRange, hospitalNa
 /* ─────────────────────────────────────────
    Featured Doctors Carousel
 ───────────────────────────────────────── */
-function FeaturedCarousel({ doctors, onBook }: { doctors: DoctorMock[]; onBook: (doc: BookingDoctor) => void }) {
-  const featured = doctors.filter(d => d.subscriptionPlan === 'Elite' || d.rating >= 4.8).slice(0, 5);
+function FeaturedCarousel({ doctors, onBook }: { doctors: SiteDoctor[]; onBook: (doc: BookingDoctor) => void }) {
+  const featured = doctors.filter(d => d.subscriptionPlan !== 'Basic' || d.rating >= 4.8).slice(0, 5);
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
@@ -544,7 +544,7 @@ function FeaturedCarousel({ doctors, onBook }: { doctors: DoctorMock[]; onBook: 
 /* ─────────────────────────────────────────
    Related Hospitals
 ───────────────────────────────────────── */
-function RelatedHospitals({ hospitals }: { hospitals: HospitalMock[] }) {
+function RelatedHospitals({ hospitals }: { hospitals: SiteHospital[] }) {
   return (
     <section className="py-16 bg-light-grey">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -635,8 +635,8 @@ function FindDoctorPageContent() {
   const [heroSearchLocation, setHeroSearchLocation] = useState(initialLocation);
   const [heroSearchBudget, setHeroSearchBudget] = useState(initialBudget);
   const [heroSearchGender, setHeroSearchGender] = useState('');
-  const [doctors, setDoctors] = useState(INITIAL_DOCTORS);
-  const [hospitals, setHospitals] = useState(INITIAL_HOSPITALS);
+  const [doctors, setDoctors] = useState<SiteDoctor[]>([]);
+  const [hospitals, setHospitals] = useState<SiteHospital[]>([]);
 
   // ── Booking Modal State ──
   const [bookingDoctor, setBookingDoctor] = useState<BookingDoctor | null>(null);
@@ -655,11 +655,18 @@ function FindDoctorPageContent() {
     async function loadData() {
       try {
         const [doctorRes, hospitalRes] = await Promise.all([
-          siteApi<{ doctors: DoctorMock[] }>('/api/doctors'),
-          siteApi<{ hospitals: HospitalMock[] }>('/api/hospitals'),
+          siteApi<{ doctors: Array<Omit<SiteDoctor, 'subscriptionPlan'> & { isSubscribed?: boolean }> }>('/api/doctors'),
+          siteApi<{ hospitals: Array<Omit<SiteHospital, 'subscriptionPlan'> & { isSubscribed?: boolean }> }>('/api/hospitals'),
         ]);
-        if (doctorRes.doctors?.length) setDoctors(doctorRes.doctors);
-        if (hospitalRes.hospitals?.length) setHospitals(hospitalRes.hospitals);
+        setDoctors((doctorRes.doctors || []).map((doctor) => ({
+          ...doctor,
+          subscriptionPlan: doctor.isSubscribed ? 'Premium' : 'Basic',
+          hospitalName: doctor.hospitalName || '',
+        })));
+        setHospitals((hospitalRes.hospitals || []).map((hospital) => ({
+          ...hospital,
+          subscriptionPlan: hospital.isSubscribed ? 'Premium' : 'Basic',
+        })));
       } catch {}
     }
     loadData();
@@ -713,10 +720,7 @@ function FindDoctorPageContent() {
     setSelectedFeeRange(''); setSelectedRating('');
   };
 
-  const getHospitalName = (hospId?: string) => {
-    if (!hospId) return 'Private Clinic';
-    return hospitals.find(h => h.id === hospId)?.name || 'Partner Hospital';
-  };
+  const getHospitalName = (doctor: SiteDoctor) => doctor.hospitalName || 'Private Clinic';
 
   const activeFilterCount = [selectedLocation, selectedExperience, selectedFeeRange, selectedGender, selectedConsultationType, selectedRating].filter(Boolean).length;
 
@@ -926,7 +930,7 @@ function FindDoctorPageContent() {
             {FILTER_CHIP_DEFS.map(def => (
               <FilterChip
                 key={def.key}
-                def={def}
+                def={def.key === 'location' ? { ...def, options: locationsList.map((location) => ({ value: location, label: location })) } : def}
                 value={filterValues[def.key]}
                 onChange={filterSetters[def.key]}
               />
@@ -1017,17 +1021,17 @@ function FindDoctorPageContent() {
             </motion.div>
           ) : (
             <div className="flex flex-col gap-4">
-              {filteredDoctors.map((doc, i) => (
-                <DoctorCard
-                  key={doc.id}
-                  doc={doc}
-                  index={i}
-                  selectedLocation={selectedLocation}
-                  selectedFeeRange={selectedFeeRange}
-                  hospitalName={getHospitalName(doc.hospitalId)}
-                  onBook={handleBookDoctor}
-                />
-              ))}
+                  {filteredDoctors.map((doc, i) => (
+                    <DoctorCard
+                      key={doc.id}
+                      doc={doc}
+                      index={i}
+                      selectedLocation={selectedLocation}
+                      selectedFeeRange={selectedFeeRange}
+                      hospitalName={getHospitalName(doc)}
+                      onBook={handleBookDoctor}
+                    />
+                  ))}
             </div>
           )}
         </div>

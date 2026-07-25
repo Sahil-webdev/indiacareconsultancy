@@ -10,7 +10,7 @@ import {
   BadgeCheck, ArrowRight, SlidersHorizontal, Zap,
   ChevronLeft
 } from 'lucide-react';
-import { HospitalMock, DoctorMock, INITIAL_HOSPITALS, INITIAL_DOCTORS } from '@/lib/mockData';
+import { SiteDoctor, SiteHospital } from '@/lib/siteTypes';
 import { siteApi } from '@/lib/api';
 import HospitalBookingModal from '@/components/HospitalBookingModal';
 
@@ -36,7 +36,7 @@ const FILTER_CHIPS: { key: FilterKey; label: string; options: { v: string; l: st
   {
     key: 'location',
     label: 'Location',
-    options: Array.from(new Set(INITIAL_HOSPITALS.map(h => h.location))).map(l => ({ v: l, l })),
+    options: [],
   },
   {
     key: 'type',
@@ -110,7 +110,7 @@ function Chip({ def, value, onChange }: {
 }
 
 /* ─── Hospital Card ─── */
-function HospitalCard({ hosp, index, docCount, onBook }: { hosp: typeof INITIAL_HOSPITALS[0]; index: number; docCount: number; onBook: (h: HospitalMock) => void }) {
+function HospitalCard({ hosp, index, docCount, onBook }: { hosp: SiteHospital; index: number; docCount: number; onBook: (h: SiteHospital) => void }) {
   const isPremium = hosp.subscriptionPlan === 'Premium';
   const hasEmergency = hosp.facilities.some(f => f.toLowerCase().includes('emergency'));
   const hasICU = hosp.facilities.some(f => f.toLowerCase().includes('icu'));
@@ -214,7 +214,7 @@ function HospitalCard({ hosp, index, docCount, onBook }: { hosp: typeof INITIAL_
 }
 
 /* ─── Featured Carousel ─── */
-function FeaturedCarousel({ hospitals, onBook }: { hospitals: HospitalMock[]; onBook: (h: HospitalMock) => void }) {
+function FeaturedCarousel({ hospitals, onBook }: { hospitals: SiteHospital[]; onBook: (h: SiteHospital) => void }) {
   const featured = hospitals.filter(h => h.subscriptionPlan === 'Premium');
   const [idx, setIdx] = useState(0);
   useEffect(() => {
@@ -321,15 +321,18 @@ function HospitalsPageContent() {
   const [heroLocation, setHeroLocation] = useState('');
   const [heroDept, setHeroDept] = useState(querySpeciality);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
-  const [hospitals, setHospitals] = useState(INITIAL_HOSPITALS);
-  const [doctors, setDoctors] = useState(INITIAL_DOCTORS);
+  const [hospitals, setHospitals] = useState<SiteHospital[]>([]);
+  const [doctors, setDoctors] = useState<SiteDoctor[]>([]);
 
   // Hospital booking state
-  const [bookingHospital, setBookingHospital] = useState<HospitalMock | null>(null);
+  const [bookingHospital, setBookingHospital] = useState<SiteHospital | null>(null);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
 
-  const handleBookHospital = (h: HospitalMock) => {
-    setBookingHospital(h);
+  const handleBookHospital = (hospital: SiteHospital) => {
+    const affiliatedDoctors = doctors
+      .filter((doctor) => doctor.hospitalName === hospital.name)
+      .map((doctor) => ({ id: doctor.id, name: doctor.name, speciality: doctor.speciality }));
+    setBookingHospital({ ...hospital, affiliatedDoctors });
     setIsBookingOpen(true);
   };
 
@@ -341,11 +344,18 @@ function HospitalsPageContent() {
     async function loadData() {
       try {
         const [hospitalRes, doctorRes] = await Promise.all([
-          siteApi<{ hospitals: HospitalMock[] }>('/api/hospitals'),
-          siteApi<{ doctors: DoctorMock[] }>('/api/doctors'),
+          siteApi<{ hospitals: Array<Omit<SiteHospital, 'subscriptionPlan'> & { isSubscribed?: boolean }> }>('/api/hospitals'),
+          siteApi<{ doctors: Array<Omit<SiteDoctor, 'subscriptionPlan'> & { isSubscribed?: boolean }> }>('/api/doctors'),
         ]);
-        if (hospitalRes.hospitals?.length) setHospitals(hospitalRes.hospitals);
-        if (doctorRes.doctors?.length) setDoctors(doctorRes.doctors);
+        setHospitals((hospitalRes.hospitals || []).map((hospital) => ({
+          ...hospital,
+          subscriptionPlan: hospital.isSubscribed ? 'Premium' : 'Basic',
+        })));
+        setDoctors((doctorRes.doctors || []).map((doctor) => ({
+          ...doctor,
+          subscriptionPlan: doctor.isSubscribed ? 'Premium' : 'Basic',
+          hospitalName: doctor.hospitalName || '',
+        })));
       } catch {}
     }
     loadData();
@@ -369,7 +379,7 @@ function HospitalsPageContent() {
 
   const clearFilters = () => { setSearchTerm(''); setSelectedLocation(''); setSelectedDept(''); setSelectedFacility(''); setSelectedType(''); };
   const activeCount = [selectedLocation, selectedDept, selectedFacility, selectedType].filter(Boolean).length;
-  const getDocCount = (id: string) => doctors.filter(d => d.hospitalId === id).length;
+  const getDocCount = (name: string) => doctors.filter((doctor) => doctor.hospitalName === name).length;
 
   const handleHeroSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -492,7 +502,7 @@ function HospitalsPageContent() {
             </div>
 
             {FILTER_CHIPS.map(def => (
-              <Chip key={def.key} def={def}
+              <Chip key={`${def.key}-dynamic`} def={def.key === 'location' ? { ...def, options: locationsList.map((location) => ({ v: location, l: location })) } : def}
                 value={def.key === 'location' ? selectedLocation : def.key === 'facility' ? selectedFacility : selectedType}
                 onChange={v => { if (def.key === 'location') setSelectedLocation(v); else if (def.key === 'facility') setSelectedFacility(v); else setSelectedType(v); }} />
             ))}
@@ -537,7 +547,7 @@ function HospitalsPageContent() {
             </motion.div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filtered.map((h, i) => <HospitalCard key={h.id} hosp={h} index={i} docCount={getDocCount(h.id)} onBook={handleBookHospital} />)}
+              {filtered.map((h, i) => <HospitalCard key={h.id} hosp={h} index={i} docCount={getDocCount(h.name)} onBook={handleBookHospital} />)}
             </div>
           )}
         </div>

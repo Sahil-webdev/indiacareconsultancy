@@ -7,12 +7,14 @@ import {
   Users, Stethoscope, Building2, Crown, BarChart2,
   TrendingUp, DollarSign, ClipboardList, Calendar,
   CheckCircle2, Clock, AlertCircle, Eye, ArrowRight,
-  Bell, Settings, Zap, MessageSquare, UserCheck,
-  AlertTriangle, FileWarning, X, ChevronRight,
+  Settings, Zap, MessageSquare, UserCheck,
+  AlertTriangle, FileWarning, ChevronRight,
   ArrowUpRight, Activity, Target,
   CreditCard, Ticket, RefreshCw,
   Filter, ChevronDown,
 } from 'lucide-react';
+import NotificationBell from '@/components/NotificationBell';
+import { useSessionUser } from '@/lib/useSessionUser';
 
 /* ── Animated counter ── */
 function Counter({ target, prefix = '' }: { target: number; prefix?: string }) {
@@ -28,19 +30,6 @@ function Counter({ target, prefix = '' }: { target: number; prefix?: string }) {
 
 /* ── Date range options ── */
 const DATE_RANGES = ['Today', 'Yesterday', 'Last 7 Days', 'This Month', 'Last 30 Days', 'This FY'];
-
-/* ── Notification data ── */
-const NOTIFICATIONS = [
-  { id: 1, tab: 'Approvals',    icon: UserCheck,     color: 'text-amber-400 bg-amber-400/10',   title: 'Doctor Approval Pending', entity: 'Dr. Sanjay Gupta', time: '5m ago',  priority: 'high',   action: 'Review' },
-  { id: 2, tab: 'Approvals',    icon: Building2,     color: 'text-violet-400 bg-violet-400/10', title: 'Hospital Verification', entity: 'Kokilaben Mumbai', time: '12m ago', priority: 'high',   action: 'Review' },
-  { id: 3, tab: 'Approvals',    icon: UserCheck,     color: 'text-sky-400 bg-sky-400/10',       title: 'Profile Change Request', entity: 'Dr. Ramesh Kumar', time: '1h ago',  priority: 'medium', action: 'Compare' },
-  { id: 4, tab: 'Payments',     icon: CreditCard,    color: 'text-red-400 bg-red-400/10',       title: 'Payment Failed', entity: 'Fortis Healthcare', time: '2h ago',  priority: 'high',   action: 'View' },
-  { id: 5, tab: 'Appointments', icon: Calendar,      color: 'text-emerald-400 bg-emerald-400/10',title: 'Appointment Confirmed', entity: 'Rahul Sharma → Dr. Ramesh', time: '3h ago', priority: 'low', action: 'View' },
-  { id: 6, tab: 'Security',     icon: AlertTriangle, color: 'text-red-400 bg-red-400/10',       title: 'Suspicious Login Detected', entity: 'Admin Panel', time: '5h ago',  priority: 'high',   action: 'View' },
-  { id: 7, tab: 'System',       icon: FileWarning,   color: 'text-amber-400 bg-amber-400/10',   title: '7 Documents Expiring Soon', entity: 'Various Doctors', time: '1d ago', priority: 'medium', action: 'View' },
-];
-
-const NOTIF_TABS = ['All', 'Approvals', 'Appointments', 'Payments', 'Security', 'System'];
 
 /* ── Action Centre items ── */
 const ACTION_ITEMS = [
@@ -90,21 +79,14 @@ const statusBadge = (s: string) => ({
 }[s] || 'badge-info');
 
 export default function SuperAdminDashboard() {
+  const sessionUser = useSessionUser();
   const [dateRange, setDateRange] = useState('This Month');
   const [showDateDropdown, setShowDateDropdown] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [notifTab, setNotifTab] = useState('All');
-  const [readIds, setReadIds] = useState<number[]>([]);
-  const notifRef = useRef<HTMLDivElement>(null);
   const dateRef = useRef<HTMLDivElement>(null);
-
-  const filteredNotifs = notifTab === 'All' ? NOTIFICATIONS : NOTIFICATIONS.filter(n => n.tab === notifTab);
-  const unreadCount = NOTIFICATIONS.filter(n => !readIds.includes(n.id)).length;
 
   /* Close dropdowns on outside click */
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
       if (dateRef.current && !dateRef.current.contains(e.target as Node)) setShowDateDropdown(false);
     }
     document.addEventListener('mousedown', handler);
@@ -154,126 +136,12 @@ export default function SuperAdminDashboard() {
               </AnimatePresence>
             </div>
 
-            {/* Notification Bell */}
-            <div className="relative" ref={notifRef}>
-              <button
-                onClick={() => setNotifOpen(v => !v)}
-                className="relative w-9 h-9 rounded-xl flex items-center justify-center border transition-colors"
-                style={{ borderColor: notifOpen ? 'rgba(37,184,154,0.4)' : 'rgba(255,255,255,0.08)', background: notifOpen ? 'rgba(37,184,154,0.08)' : 'rgba(255,255,255,0.04)' }}
-                aria-label="Notifications"
-              >
-                <Bell className="w-4 h-4" style={{ color: notifOpen ? '#25B89A' : '#64748B' }} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-black flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Notification Drawer */}
-              <AnimatePresence>
-                {notifOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 4, scale: 0.97 }}
-                    transition={{ duration: 0.18 }}
-                    className="absolute right-0 top-full mt-2 z-50 rounded-2xl border shadow-2xl overflow-hidden"
-                    style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)', width: 380 }}
-                  >
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border-color)' }}>
-                      <div className="flex items-center gap-2">
-                        <Bell className="w-4 h-4" style={{ color: '#25B89A' }} />
-                        <span className="font-extrabold text-sm" style={{ color: 'var(--text-primary)' }}>Notifications</span>
-                        {unreadCount > 0 && (
-                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400">{unreadCount} new</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setReadIds(NOTIFICATIONS.map(n => n.id))}
-                          className="text-[10px] font-bold transition-colors"
-                          style={{ color: '#25B89A' }}
-                        >
-                          Mark all read
-                        </button>
-                        <button onClick={() => setNotifOpen(false)} style={{ color: 'var(--text-muted)' }}>
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                    {/* Tabs */}
-                    <div className="flex gap-1 px-3 py-2 border-b overflow-x-auto" style={{ borderColor: 'var(--border-color)' }}>
-                      {NOTIF_TABS.map(tab => (
-                        <button
-                          key={tab}
-                          onClick={() => setNotifTab(tab)}
-                          className="px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all"
-                          style={notifTab === tab
-                            ? { background: 'rgba(18,122,106,0.25)', color: '#25B89A', border: '1px solid rgba(37,184,154,0.25)' }
-                            : { color: 'var(--text-muted)', border: '1px solid transparent' }}
-                        >
-                          {tab}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Notifications list */}
-                    <div className="overflow-y-auto panel-scroll" style={{ maxHeight: 360 }}>
-                      {filteredNotifs.length === 0 ? (
-                        <p className="text-center text-xs py-8" style={{ color: 'var(--text-muted)' }}>No notifications</p>
-                      ) : (
-                        filteredNotifs.map(n => {
-                          const Icon = n.icon;
-                          const isRead = readIds.includes(n.id);
-                          return (
-                            <div
-                              key={n.id}
-                              className="flex items-start gap-3 px-4 py-3 border-b transition-colors hover:bg-white/[0.02] cursor-pointer"
-                              style={{ borderColor: 'rgba(255,255,255,0.04)', background: isRead ? 'transparent' : 'rgba(37,184,154,0.02)' }}
-                              onClick={() => setReadIds(prev => [...prev, n.id])}
-                            >
-                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${n.color}`}>
-                                <Icon className="w-3.5 h-3.5" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <p className="text-[11px] font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>{n.title}</p>
-                                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                                    {n.priority === 'high' && (
-                                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
-                                    )}
-                                    {!isRead && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />}
-                                  </div>
-                                </div>
-                                <p className="text-[10px] mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>{n.entity}</p>
-                                <div className="flex items-center justify-between mt-1.5">
-                                  <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{n.time}</span>
-                                  <button
-                                    className="text-[9px] font-bold px-2 py-0.5 rounded-md transition-colors"
-                                    style={{ color: '#25B89A', background: 'rgba(37,184,154,0.1)' }}
-                                  >
-                                    {n.action}
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                    <div className="px-4 py-2.5 text-center border-t" style={{ borderColor: 'var(--border-color)' }}>
-                      <button className="text-[11px] font-bold" style={{ color: '#25B89A' }}>View All Notifications →</button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <NotificationBell />
 
             {/* User chip */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}>
               <Crown className="w-4 h-4 text-amber-400" />
-              <span className="text-xs font-bold text-white">Vikram Singh</span>
+              <span className="text-xs font-bold text-white">{sessionUser?.name || 'Super Admin'}</span>
             </div>
           </div>
         </header>

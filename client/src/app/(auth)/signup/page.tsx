@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart, UserPlus, Lock, Mail, Eye, EyeOff, Phone, User,
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { mockDB } from '@/lib/mockData';
+import { usePatientAuth } from '@/lib/patientAuth';
 
 interface PatientForm {
   name: string; mobile: string; email: string;
@@ -42,7 +43,10 @@ function InputField({ label, icon: Icon, error, children }: {
 
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { login } = usePatientAuth();
+  const redirectTo = searchParams.get('redirect') || '/';
 
   const [form, setForm] = useState<PatientForm>({
     name: '', mobile: '', email: '', password: '', confirmPassword: '',
@@ -83,9 +87,19 @@ export default function SignupPage() {
     setTimeout(() => {
       setLoading(false);
       mockDB.registerUser({ name: form.name, email: form.email, phone: form.mobile, role: 'patient' });
+      login({
+        id: `patient_${Date.now()}`,
+        name: form.name,
+        email: form.email,
+        mobile: form.mobile,
+        city: form.city,
+        gender: form.gender || 'Other',
+        profileComplete: false,
+        createdAt: new Date().toISOString(),
+      });
       setSuccess(true);
       toast('success', 'Account Created!', 'Welcome to India Care Consultancy. Redirecting…');
-      setTimeout(() => router.push('/'), 1500);
+      setTimeout(() => router.push(redirectTo), 1500);
     }, 1400);
   };
 

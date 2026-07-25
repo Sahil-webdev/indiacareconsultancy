@@ -4,18 +4,21 @@ const { getPool } = require('../config/mysql');
 const { fetchOne, fetchRows } = require('../services/mysqlUtils');
 const { formatDoctor } = require('../services/entityFormatters');
 const { createUserAccount } = require('../services/accountProvisioning');
+const { submitDoctorProfileChanges } = require('../services/profileChangeWorkflow');
 
 const router = express.Router();
 
 const baseDoctorSelect = `
   SELECT
     d.*,
+    u.is_active AS account_is_active,
     COALESCE((SELECT JSON_ARRAYAGG(day) FROM doctor_availability WHERE doctor_id = d.id), JSON_ARRAY()) AS availability,
     COALESCE((SELECT JSON_ARRAYAGG(language) FROM doctor_languages WHERE doctor_id = d.id), JSON_ARRAY()) AS languages,
     COALESCE((SELECT JSON_ARRAYAGG(service) FROM doctor_services WHERE doctor_id = d.id), JSON_ARRAY()) AS services,
     COALESCE((SELECT JSON_ARRAYAGG(award) FROM doctor_awards WHERE doctor_id = d.id), JSON_ARRAY()) AS awards,
     (SELECT COUNT(*) FROM profile_change_requests WHERE entity_type = 'doctor' AND entity_id = d.id AND status = 'Pending') AS pending_change_requests
   FROM doctors d
+  INNER JOIN users u ON u.id = d.user_id
 `;
 
 async function getDoctorById(id) {
@@ -39,7 +42,14 @@ router.get('/', async (req, res, next) => {
       conditions.push('d.is_subscribed = 1');
     }
     if (approval === 'approved') conditions.push('d.is_approved = 1');
-    if (approval === 'pending') conditions.push('d.is_approved = 0');
+    if (approval === 'pending') {
+      conditions.push('d.is_approved = 0');
+      conditions.push('u.is_active = 1');
+    }
+    if (approval === 'rejected') {
+      conditions.push('d.is_approved = 0');
+      conditions.push('u.is_active = 0');
+    }
     if (speciality) {
       conditions.push('d.speciality LIKE ?');
       params.push(`%${speciality}%`);
@@ -93,6 +103,9 @@ router.get('/:id', async (req, res, next) => {
   try {
     const doctor = await getDoctorById(req.params.id);
     if (!doctor) {
+      return res.status(404).json({ success: false, message: 'Doctor not found' });
+    }
+    if (!doctor.isApproved || !doctor.isSubscribed) {
       return res.status(404).json({ success: false, message: 'Doctor not found' });
     }
     res.json({ success: true, doctor });
@@ -190,19 +203,36 @@ router.patch('/:id', protect, async (req, res, next) => {
 
     const isAdmin = ['super_admin', 'consultant'].includes(req.user.role);
     const updates = req.body;
+    const approvalDecision = updates.approvalDecision;
 
     if (!isAdmin) {
-      const editableFields = ['name', 'phone', 'qualification', 'speciality', 'experience', 'clinicAddress', 'location', 'area', 'consultationFee', 'consultationType', 'bio', 'opdTimings'];
-      for (const field of editableFields) {
-        if (updates[field] !== undefined && String(updates[field]) !== String(doctor[field] ?? '')) {
-          await pool.execute(
-            `INSERT INTO profile_change_requests (entity_type, entity_id, field_name, old_value, new_value, status)
-             VALUES ('doctor', ?, ?, ?, ?, 'Pending')`,
-            [req.params.id, field, doctor[field] ?? null, String(updates[field])]
-          );
-        }
+      if (req.user.role !== 'doctor' || doctor.userId !== String(req.user.id)) {
+        return res.status(403).json({ success: false, message: 'Forbidden: You can only update your own doctor profile' });
       }
-      return res.json({ success: true, message: 'Profile update submitted for review' });
+
+      const result = await submitDoctorProfileChanges({
+        doctorId: req.params.id,
+        actorUser: req.user,
+        updates,
+        currentDoctor: doctor,
+      });
+
+      res.locals.activityLog = {
+        action: result.changed ? 'Doctor profile change submitted' : 'Doctor profile save attempted',
+        entityType: 'doctor',
+        entityId: req.params.id,
+        category: 'Verification',
+        dashboardHref: '/dashboard/super-admin/verification/profile-changes',
+        description: result.changed
+          ? `${doctor.name} submitted profile updates for review`
+          : `${doctor.name} opened save flow without any actual changes`,
+      };
+
+      return res.json({
+        success: true,
+        message: result.changed ? 'Profile update submitted for review' : 'No profile changes detected',
+        doctor: result.doctor,
+      });
     }
 
     await pool.execute(
@@ -223,7 +253,11 @@ router.patch('/:id', protect, async (req, res, next) => {
         updates.bio ?? doctor.bio,
         updates.opdTimings ?? doctor.opdTimings,
         updates.rating ?? doctor.rating,
-        updates.isApproved === undefined ? (doctor.isApproved ? 1 : 0) : (updates.isApproved ? 1 : 0),
+        approvalDecision === 'approved'
+          ? 1
+          : approvalDecision === 'rejected' || approvalDecision === 'pending'
+            ? 0
+            : updates.isApproved === undefined ? (doctor.isApproved ? 1 : 0) : (updates.isApproved ? 1 : 0),
         updates.isSubscribed === undefined ? (doctor.isSubscribed ? 1 : 0) : (updates.isSubscribed ? 1 : 0),
         updates.subscriptionPaidAt ?? doctor.subscriptionPaidAt ?? null,
         updates.subscriptionEndsAt ?? doctor.subscriptionEndsAt ?? null,
@@ -231,6 +265,13 @@ router.patch('/:id', protect, async (req, res, next) => {
         req.params.id,
       ]
     );
+
+    if (approvalDecision === 'approved' || approvalDecision === 'pending' || approvalDecision === 'rejected') {
+      await pool.execute(
+        'UPDATE users SET is_active = ? WHERE id = ?',
+        [approvalDecision === 'rejected' ? 0 : 1, doctor.userId]
+      );
+    }
 
     if (Array.isArray(updates.availability)) {
       await pool.execute('DELETE FROM doctor_availability WHERE doctor_id = ?', [req.params.id]);
@@ -257,7 +298,7 @@ router.patch('/:id', protect, async (req, res, next) => {
       }
     }
 
-    if (updates.approvePendingChanges) {
+    if (updates.approvePendingChanges || approvalDecision === 'approved') {
       await pool.execute(
         `UPDATE profile_change_requests
          SET status = 'Approved', reviewed_by = ?, reviewed_at = NOW()
@@ -266,7 +307,35 @@ router.patch('/:id', protect, async (req, res, next) => {
       );
     }
 
+    if (approvalDecision === 'rejected') {
+      await pool.execute(
+        `UPDATE profile_change_requests
+         SET status = 'Rejected', reviewed_by = ?, reviewed_at = NOW()
+         WHERE entity_type = 'doctor' AND entity_id = ? AND status = 'Pending'`,
+        [req.user.id, req.params.id]
+      );
+    }
+
     const updatedDoctor = await getDoctorById(req.params.id);
+    if (approvalDecision === 'approved' || approvalDecision === 'rejected') {
+      res.locals.activityLog = {
+        action: approvalDecision === 'approved' ? 'Doctor approval updated' : 'Doctor rejected',
+        entityType: 'doctor',
+        entityId: req.params.id,
+        category: 'Verification',
+        dashboardHref: '/dashboard/super-admin/verification/doctor-approvals',
+        description: `${updatedDoctor?.name || doctor.name} was ${approvalDecision}`,
+      };
+    } else if (updates.approvePendingChanges) {
+      res.locals.activityLog = {
+        action: 'Doctor profile changes approved',
+        entityType: 'doctor',
+        entityId: req.params.id,
+        category: 'Verification',
+        dashboardHref: '/dashboard/super-admin/verification/profile-changes',
+        description: `Pending profile changes approved for ${updatedDoctor?.name || doctor.name}`,
+      };
+    }
     res.json({ success: true, doctor: updatedDoctor });
   } catch (error) {
     next(error);

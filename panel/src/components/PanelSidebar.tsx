@@ -18,7 +18,7 @@ import {
   FileWarning, Clipboard, Briefcase, AlertTriangle, Sparkles,
 } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
-import { clearSession } from '@/lib/session';
+import { clearSession, getSessionUser } from '@/lib/session';
 
 type Role = 'super_admin' | 'consultant' | 'doctor' | 'hospital';
 
@@ -308,6 +308,7 @@ export default function PanelSidebar({ role, userName = 'ICC Admin' }: PanelSide
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [resolvedUserName, setResolvedUserName] = useState(userName);
   const { theme, toggle } = useTheme();
   const meta = ROLE_META[role];
   const RoleIcon = meta.icon;
@@ -341,6 +342,15 @@ export default function PanelSidebar({ role, userName = 'ICC Admin' }: PanelSide
     });
     return () => cancelAnimationFrame(raf);
   }, [pathname]);
+
+  useEffect(() => {
+    const sessionUser = getSessionUser();
+    if (sessionUser?.role === role && sessionUser.name) {
+      setResolvedUserName(sessionUser.name);
+      return;
+    }
+    setResolvedUserName(userName);
+  }, [role, userName]);
 
 
   return (
@@ -428,7 +438,7 @@ export default function PanelSidebar({ role, userName = 'ICC Admin' }: PanelSide
               <RoleIcon className={`w-4 h-4 ${meta.color}`} />
             </div>
             <div className={`panel-sidebar-label min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
-              <p className="text-xs font-extrabold truncate" style={{ color: 'var(--text-primary)' }}>{userName}</p>
+              <p className="text-xs font-extrabold truncate" style={{ color: 'var(--text-primary)' }}>{resolvedUserName}</p>
               <p className="text-[10px] font-semibold truncate" style={{ color: 'var(--text-secondary)' }}>{meta.label}</p>
             </div>
           </div>

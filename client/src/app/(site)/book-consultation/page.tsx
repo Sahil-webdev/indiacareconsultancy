@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   User, Heart, Calendar, ShieldAlert, ChevronRight, ArrowRight,
@@ -11,7 +11,9 @@ import {
   Home, Star, X, FileText,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
-import { mockDB } from '@/lib/mockData';
+import { siteApi } from '@/lib/api';
+import { SiteDoctor, SiteHospital } from '@/lib/siteTypes';
+import { usePatientAuth } from '@/lib/patientAuth';
 
 /* ─── step meta ─── */
 const STEPS = [
@@ -77,10 +79,14 @@ function Checkbox({ checked, onChange, children }: {
 function IntakeFormContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
+  const { isLoggedIn, patient } = usePatientAuth();
 
-  const docId = searchParams.get('doc') || '';
-  const preselectedDoc = docId ? mockDB.doctors.find((d) => d.id === docId) : null;
+  const doctorId = searchParams.get('doctorId') || searchParams.get('doc') || '';
+  const hospitalId = searchParams.get('hospitalId') || '';
+  const [preselectedDoc, setPreselectedDoc] = useState<SiteDoctor | null>(null);
+  const [preselectedHospital, setPreselectedHospital] = useState<SiteHospital | null>(null);
 
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1); // +1 forward, -1 back
@@ -88,22 +94,88 @@ function IntakeFormContent() {
   const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
-    name: '', age: '', gender: 'Male', phone: '', whatsappNumber: '', email: '',
-    city: '', area: '',
+    name: patient?.name || '', age: patient?.age || '', gender: patient?.gender || 'Male', phone: patient?.mobile || '', whatsappNumber: patient?.mobile || '', email: patient?.email || '',
+    city: patient?.city || '', area: '',
     mainProblem: '', symptoms: '', duration: '',
-    preferredSpeciality: preselectedDoc ? preselectedDoc.speciality : '',
+    preferredSpeciality: '',
     reports: [] as string[],
-    preferredLocation: preselectedDoc ? preselectedDoc.location : '',
-    budgetRange: preselectedDoc
-      ? preselectedDoc.consultationFee < 800 ? 'Low'
-        : preselectedDoc.consultationFee <= 1200 ? 'Medium' : 'High'
-      : 'Medium',
+    preferredLocation: '',
+    budgetRange: 'Medium',
     preferredDoctorGender: 'Any',
-    preferredHospitalClinic: preselectedDoc ? preselectedDoc.clinicAddress : '',
+    preferredHospitalClinic: '',
     preferredDateTime: '',
     patientDisclaimerConsent: false,
     dataConsent: false,
   });
+
+  useEffect(() => {
+    async function loadPreselectedProfile() {
+      try {
+        if (doctorId) {
+          const response = await siteApi<{ doctor: SiteDoctor }>('/api/doctors/' + doctorId);
+          const doctor = {
+            ...response.doctor,
+            subscriptionPlan: (response.doctor.isSubscribed ? 'Premium' : 'Basic') as SiteDoctor['subscriptionPlan'],
+            hospitalName: response.doctor.hospitalName || '',
+          };
+          setPreselectedDoc(doctor);
+          setFormData((prev) => ({
+            ...prev,
+            preferredSpeciality: prev.preferredSpeciality || doctor.speciality,
+            preferredLocation: prev.preferredLocation || doctor.location,
+            budgetRange: prev.budgetRange === 'Medium'
+              ? doctor.consultationFee < 800 ? 'Low'
+                : doctor.consultationFee <= 1200 ? 'Medium' : 'High'
+              : prev.budgetRange,
+            preferredHospitalClinic: prev.preferredHospitalClinic || doctor.clinicAddress,
+          }));
+          return;
+        }
+
+        if (hospitalId) {
+          const response = await siteApi<{ hospital: SiteHospital }>('/api/hospitals/' + hospitalId);
+          const hospital = {
+            ...response.hospital,
+            subscriptionPlan: (response.hospital.isSubscribed ? 'Premium' : 'Basic') as SiteHospital['subscriptionPlan'],
+          };
+          setPreselectedHospital(hospital);
+          setFormData((prev) => ({
+            ...prev,
+            preferredLocation: prev.preferredLocation || hospital.location,
+            preferredHospitalClinic: prev.preferredHospitalClinic || hospital.name,
+            preferredSpeciality: prev.preferredSpeciality || hospital.departments[0] || '',
+          }));
+        }
+      } catch {
+        setPreselectedDoc(null);
+        setPreselectedHospital(null);
+      }
+    }
+
+    loadPreselectedProfile();
+  }, [doctorId, hospitalId]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      const query = searchParams.toString();
+      const redirectTarget = query ? `${pathname}?${query}` : (pathname || '/book-consultation');
+      router.replace(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
+    }
+  }, [isLoggedIn, pathname, router, searchParams]);
+
+  useEffect(() => {
+    if (!patient) return;
+    setFormData((prev) => ({
+      ...prev,
+      name: prev.name || patient.name || '',
+      age: prev.age || patient.age || '',
+      gender: prev.gender || patient.gender || 'Male',
+      phone: prev.phone || patient.mobile || '',
+      whatsappNumber: prev.whatsappNumber || patient.mobile || '',
+      email: prev.email || patient.email || '',
+      city: prev.city || patient.city || '',
+    }));
+  }, [patient]);
 
   const set = (k: string, v: string | boolean | string[]) =>
     setFormData(prev => ({ ...prev, [k]: v }));
@@ -142,15 +214,17 @@ function IntakeFormContent() {
     }
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.patientDisclaimerConsent || !formData.dataConsent) {
       toast('error', 'Consent Required', 'Please accept both consent agreements.');
       return;
     }
     setSubmitting(true);
-    setTimeout(() => {
-      mockDB.createLead({
+    try {
+      await siteApi('/api/leads', {
+        method: 'POST',
+        body: JSON.stringify({
         patientDetails: {
           name: formData.name, age: parseInt(formData.age) || 30,
           gender: formData.gender as 'Male' | 'Female' | 'Other',
@@ -171,28 +245,25 @@ function IntakeFormContent() {
           preferredDateTime: formData.preferredDateTime,
         },
         consent: { patientDisclaimerConsent: formData.patientDisclaimerConsent, dataConsent: formData.dataConsent },
+        }),
       });
-      if (preselectedDoc) {
-        mockDB.createAppointment({
-          patientName: formData.name, patientPhone: formData.phone,
-          patientEmail: formData.email || 'guest@example.com',
-          doctorId: preselectedDoc.id, hospitalId: preselectedDoc.hospitalId,
-          speciality: preselectedDoc.speciality,
-          appointmentDate: formData.preferredDateTime.split(' ')[0] || '2026-06-20',
-          appointmentTime: '11:00',
-          notes: `Intake Wizard referral. Main concern: ${formData.mainProblem}`,
-        });
-      }
       setSubmitting(false);
       setSubmitted(true);
       toast('success', 'Request Submitted!', 'Our consultant will contact you shortly.');
-    }, 1400);
+    } catch (error) {
+      setSubmitting(false);
+      toast('error', 'Submission Failed', error instanceof Error ? error.message : 'Please try again.');
+    }
   };
 
   /* ── Progress % ── */
   const progress = ((step - 1) / (STEPS.length - 1)) * 100;
 
   /* ════════════════ SUCCESS SCREEN ════════════════ */
+  if (!isLoggedIn) {
+    return null;
+  }
+
   if (submitted) {
     return (
       <div className="min-h-screen bg-light-grey flex items-center justify-center px-4 py-16">

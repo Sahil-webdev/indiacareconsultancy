@@ -29,10 +29,11 @@ import {
   Heart,
   Shield,
 } from 'lucide-react';
-import { DoctorMock, mockDB } from '@/lib/mockData';
+import { siteApi } from '@/lib/api';
+import { SiteDoctor, SiteHospital } from '@/lib/siteTypes';
 import BookingModal, { BookingDoctor } from '@/components/BookingModal';
 
-interface Props { doctor: DoctorMock; }
+interface Props { doctor: SiteDoctor; }
 
 /* ─── Animated ring progress ─── */
 function RingProgress({ pct, size = 80, stroke = 7, color = '#127A6A', label }: {
@@ -104,11 +105,42 @@ export default function DoctorProfileClient({ doctor }: Props) {
   const [carouselIdx, setCarouselIdx] = useState(0);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const stickyRef = useRef<HTMLDivElement>(null);
+  const [hospital, setHospital] = useState<SiteHospital | null>(null);
+  const [relatedDoctors, setRelatedDoctors] = useState<SiteDoctor[]>([]);
 
   // ── Booking Modal State ──
   const [isBookingOpen, setIsBookingOpen] = useState(false);
 
-  const hospital = mockDB.hospitals.find(h => h.id === doctor.hospitalId);
+  useEffect(() => {
+    async function loadRelatedData() {
+      try {
+        const requests: Promise<unknown>[] = [
+          siteApi<{ doctors: SiteDoctor[] }>(`/api/doctors?speciality=${encodeURIComponent(doctor.speciality)}`),
+        ];
+
+        if (doctor.hospitalName) {
+          requests.push(siteApi<{ hospitals: SiteHospital[] }>(`/api/hospitals?search=${encodeURIComponent(doctor.hospitalName)}`));
+        }
+
+        const [doctorResponse, hospitalResponse] = await Promise.all(requests);
+        const doctorMatches = (doctorResponse as { doctors: SiteDoctor[] }).doctors || [];
+        setRelatedDoctors(doctorMatches.filter((item) => item.id !== doctor.id).slice(0, 4));
+
+        if (hospitalResponse) {
+          const hospitalMatches = (hospitalResponse as { hospitals: SiteHospital[] }).hospitals || [];
+          const matchedHospital = hospitalMatches.find((item) => item.name === doctor.hospitalName) || null;
+          setHospital(matchedHospital);
+        } else {
+          setHospital(null);
+        }
+      } catch {
+        setRelatedDoctors([]);
+        setHospital(null);
+      }
+    }
+
+    loadRelatedData();
+  }, [doctor.hospitalName, doctor.id, doctor.speciality]);
 
   const bookingDoc: BookingDoctor = {
     id: doctor.id,
@@ -122,13 +154,9 @@ export default function DoctorProfileClient({ doctor }: Props) {
     location: doctor.location,
     clinicAddress: doctor.clinicAddress,
     consultationType: doctor.consultationType,
-    hospitalName: hospital?.name,
+    hospitalName: doctor.hospitalName || hospital?.name,
     availability: doctor.availability,
   };
-
-  const relatedDoctors = mockDB.doctors
-    .filter(d => d.speciality === doctor.speciality && d.id !== doctor.id)
-    .slice(0, 4);
 
   /* Match score computation */
   const matchScore = Math.min(99,
@@ -173,7 +201,7 @@ export default function DoctorProfileClient({ doctor }: Props) {
   const faqs = [
     { q: `What conditions does ${doctor.name} treat?`, a: `${doctor.name} treats a wide range of conditions including ${doctor.services?.slice(0, 3).join(', ')} and more. Refer to the Treatments section for the full list.` },
     { q: 'How much is the consultation fee?', a: `The consultation fee is ₹${doctor.consultationFee} per session. This may vary for follow-up visits. India Care Consultancy helps coordinate appointment slots at no additional charge.` },
-    { q: 'Which hospital is the doctor associated with?', a: hospital ? `${doctor.name} practises at ${hospital.name}, located at ${hospital.address}. The hospital is an accredited India Care partner.` : `${doctor.name} practises at ${doctor.clinicAddress}.` },
+    { q: 'Which hospital is the doctor associated with?', a: hospital ? `${doctor.name} practises at ${hospital.name}, located at ${hospital.address}. The hospital is an accredited India Care partner.` : doctor.hospitalName ? `${doctor.name} practises at ${doctor.hospitalName}.` : `${doctor.name} practises at ${doctor.clinicAddress}.` },
     { q: 'Can appointments be booked online?', a: 'Yes. You can request an appointment through India Care Consultancy. Our consultant team will confirm availability and coordinate the booking directly with the clinic or hospital.' },
     { q: `Does ${doctor.name} offer online consultations?`, a: `${doctor.name} offers ${doctor.consultationType === 'Both' ? 'both online video and in-clinic physical' : doctor.consultationType.toLowerCase()} consultations.` },
   ];

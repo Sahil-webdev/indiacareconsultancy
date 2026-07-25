@@ -63,6 +63,15 @@ router.post('/activate', protect, async (req, res, next) => {
       [durationDays, entityId]
     );
 
+    res.locals.activityLog = {
+      action: 'Subscription activated',
+      entityType,
+      entityId,
+      category: 'Revenue',
+      dashboardHref: '/dashboard/super-admin/subscriptions',
+      description: `${entityType} subscription activated for entity ${entityId}`,
+    };
+
     res.json({ success: true, message: 'Subscription activated successfully' });
   } catch (error) {
     next(error);

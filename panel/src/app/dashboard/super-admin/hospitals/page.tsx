@@ -19,6 +19,8 @@ type Hospital = {
   rating: number;
   isApproved: boolean;
   isSubscribed: boolean;
+  isActive?: boolean;
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
   pendingChangeRequests: number;
   email?: string;
   phone?: string;
@@ -291,7 +293,8 @@ export default function HospitalsPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [tab, setTab] = useState<'pending' | 'all'>('pending');
+  const [success, setSuccess] = useState('');
+  const [tab, setTab] = useState<'pending' | 'all'>('all');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   async function loadHospitals() {
@@ -312,37 +315,81 @@ export default function HospitalsPage() {
     return () => clearInterval(interval);
   }, []);
 
-  async function approveHospital(id: string, approve: boolean) {
-    setActionLoading(id + (approve ? '_approve' : '_reject'));
+  async function setHospitalApproval(id: string, approvalDecision: 'approved' | 'rejected') {
+    setActionLoading(`${id}_${approvalDecision}`);
     try {
       await panelApi(`/api/hospitals/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ isApproved: approve }),
+        body: JSON.stringify({ approvalDecision }),
       });
       await loadHospitals();
+      setSuccess(approvalDecision === 'approved' ? 'Hospital approved successfully' : 'Hospital rejected successfully');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update hospital approval');
     } finally {
       setActionLoading(null);
     }
   }
 
   async function updateHospital(id: string, updates: Partial<Hospital>) {
-    await panelApi(`/api/hospitals/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(updates),
-    });
-    await loadHospitals();
+    setActionLoading(`${id}_subscription`);
+    try {
+      await panelApi(`/api/hospitals/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      });
+      await loadHospitals();
+      setSuccess('Hospital subscription updated successfully');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update hospital');
+    } finally {
+      setActionLoading(null);
+    }
   }
 
-  const pending = hospitals.filter(h => !h.isApproved);
+  useEffect(() => {
+    if (!success) return;
+    const timer = window.setTimeout(() => setSuccess(''), 3000);
+    return () => window.clearTimeout(timer);
+  }, [success]);
+
+  const pending = hospitals.filter(h => (h.approvalStatus ?? (h.isApproved ? 'approved' : 'pending')) === 'pending');
+  const approvedCount = hospitals.filter(h => (h.approvalStatus ?? (h.isApproved ? 'approved' : 'pending')) === 'approved').length;
+  const subscribedCount = hospitals.filter(h => h.isSubscribed).length;
 
   const filtered = useMemo(() => {
-    const source = tab === 'pending' ? hospitals.filter(h => !h.isApproved) : hospitals;
+    const source = tab === 'pending'
+      ? hospitals.filter(h => (h.approvalStatus ?? (h.isApproved ? 'approved' : 'pending')) === 'pending')
+      : hospitals;
     return source.filter((h) =>
       h.name.toLowerCase().includes(search.toLowerCase()) ||
       h.hospitalType.toLowerCase().includes(search.toLowerCase()) ||
       h.location.toLowerCase().includes(search.toLowerCase())
     );
   }, [hospitals, search, tab]);
+
+  const getApprovalBadge = (hospital: Hospital) => {
+    const status = hospital.approvalStatus ?? (hospital.isApproved ? 'approved' : 'pending');
+    if (status === 'approved') {
+      return {
+        label: 'Approved',
+        background: 'rgba(34,197,94,0.12)',
+        color: '#4ade80',
+      };
+    }
+    if (status === 'rejected') {
+      return {
+        label: 'Rejected',
+        background: 'rgba(239,68,68,0.12)',
+        color: '#f87171',
+      };
+    }
+    return {
+      label: 'Pending',
+      background: 'rgba(245,158,11,0.12)',
+      color: '#f59e0b',
+    };
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -372,12 +419,144 @@ export default function HospitalsPage() {
       <main className="flex-1 overflow-y-auto panel-scroll p-6">
         {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-violet-400" /></div> : null}
         {error ? <div className="text-red-400 text-sm mb-4">{error}</div> : null}
+        {success ? <div className="text-emerald-400 text-sm mb-4">{success}</div> : null}
 
         {!loading && (
           <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+              {[
+                { label: 'Total Hospitals', value: hospitals.length, icon: Building2, color: 'bg-violet-500' },
+                { label: 'Approved', value: approvedCount, icon: CheckCircle2, color: 'bg-emerald-500' },
+                { label: 'Pending', value: pending.length, icon: Shield, color: 'bg-amber-500' },
+                { label: 'Subscribed', value: subscribedCount, icon: RefreshCw, color: 'bg-sky-500' },
+              ].map((item) => (
+                <div key={item.label} className="panel-card p-4 flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-xl ${item.color} flex items-center justify-center flex-shrink-0`}>
+                    <item.icon className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{item.value}</p>
+                    <p className="text-[10px]" style={{ color: '#64748B' }}>{item.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── TAB BAR + SEARCH ── */}
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
+              <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                {(['all', 'pending'] as const).map(t => (
+                  <button key={t} onClick={() => setTab(t)}
+                    className="px-4 py-2 text-xs font-bold capitalize transition-all"
+                    style={{
+                      background: tab === t ? 'rgba(139,92,246,0.15)' : 'transparent',
+                      color: tab === t ? '#a78bfa' : '#64748B',
+                    }}>
+                    {t === 'pending' ? `Pending (${pending.length})` : `All Hospitals (${hospitals.length})`}
+                  </button>
+                ))}
+              </div>
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#64748B' }} />
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search hospital, type, city"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm text-white focus:outline-none"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }} />
+              </div>
+            </div>
+
+            {/* ── HOSPITAL TABLE ── */}
+            {filtered.length === 0 ? (
+              <div className="panel-card py-16 flex flex-col items-center gap-4 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center">
+                  <Building2 className="w-7 h-7" style={{ color: '#475569' }} />
+                </div>
+                <div>
+                  <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                    {search ? 'No hospitals found for your search' : tab === 'pending' ? 'No pending requests' : 'No hospitals yet'}
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: '#64748B' }}>
+                    {search ? 'Try a different keyword' : tab === 'pending' ? 'All hospitals have been processed.' : 'Hospitals will appear here once they self-register via the panel login page.'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="panel-card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        {['Hospital', 'Type', 'City', 'Beds', 'Doctors', 'Approval', 'Subscription', 'Actions'].map(h => (
+                          <th key={h} className="px-4 py-3 text-[10px] font-black uppercase tracking-widest" style={{ color: '#2D4150' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((hospital) => (
+                        <tr key={hospital.id} className="border-b align-top" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                          <td className="px-4 py-3.5">
+                            <div>
+                              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{hospital.name}</p>
+                              {hospital.email && <p className="text-[10px] mt-0.5" style={{ color: '#475569' }}>{hospital.email}</p>}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5" style={{ color: '#94A3B8' }}>{hospital.hospitalType}</td>
+                          <td className="px-4 py-3.5" style={{ color: '#94A3B8' }}>{hospital.location}</td>
+                          <td className="px-4 py-3.5 text-white font-bold">{hospital.totalBeds || '—'}</td>
+                          <td className="px-4 py-3.5" style={{ color: '#94A3B8' }}>{hospital.doctorCount}</td>
+                          <td className="px-4 py-3.5">
+                            {(() => {
+                              const badge = getApprovalBadge(hospital);
+                              return (
+                                <span
+                                  className="inline-flex px-3 py-1.5 rounded-xl text-xs font-bold"
+                                  style={{ background: badge.background, color: badge.color }}
+                                >
+                                  {badge.label}
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <button onClick={() => updateHospital(hospital.id, { isSubscribed: !hospital.isSubscribed } as Partial<Hospital>)}
+                              disabled={actionLoading === `${hospital.id}_subscription`}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold"
+                              style={{ background: hospital.isSubscribed ? 'rgba(139,92,246,0.12)' : 'rgba(148,163,184,0.12)', color: hospital.isSubscribed ? '#a78bfa' : '#94A3B8' }}>
+                              {actionLoading === `${hospital.id}_subscription`
+                                ? 'Updating...'
+                                : hospital.isSubscribed ? 'Subscribed' : 'Unsubscribed'}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => setHospitalApproval(hospital.id, 'approved')}
+                                disabled={actionLoading === `${hospital.id}_approved` || hospital.approvalStatus === 'approved'}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold"
+                                style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa' }}
+                              >
+                                {actionLoading === `${hospital.id}_approved` ? 'Approving...' : 'Approve'}
+                              </button>
+                              <button
+                                onClick={() => setHospitalApproval(hospital.id, 'rejected')}
+                                disabled={actionLoading === `${hospital.id}_rejected` || hospital.approvalStatus === 'rejected'}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold"
+                                style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}
+                              >
+                                {actionLoading === `${hospital.id}_rejected` ? 'Rejecting...' : 'Reject'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* ── PENDING APPROVAL SECTION ── */}
             {pending.length > 0 && (
-              <div className="mb-6">
+              <div className="mt-6">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                   <p className="text-xs font-black uppercase tracking-widest" style={{ color: '#f59e0b' }}>
@@ -429,20 +608,20 @@ export default function HospitalsPage() {
                       </div>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => approveHospital(hospital.id, true)}
-                          disabled={actionLoading === hospital.id + '_approve'}
+                          onClick={() => setHospitalApproval(hospital.id, 'approved')}
+                          disabled={actionLoading === `${hospital.id}_approved`}
                           className="flex-1 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all"
                           style={{ background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)', color: '#fff', boxShadow: '0 4px 12px rgba(139,92,246,0.25)' }}>
-                          {actionLoading === hospital.id + '_approve'
+                          {actionLoading === `${hospital.id}_approved`
                             ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             : <><CheckCircle2 className="w-3.5 h-3.5" /> Approve</>}
                         </button>
                         <button
-                          onClick={() => approveHospital(hospital.id, false)}
-                          disabled={actionLoading === hospital.id + '_reject'}
+                          onClick={() => setHospitalApproval(hospital.id, 'rejected')}
+                          disabled={actionLoading === `${hospital.id}_rejected`}
                           className="px-4 py-2 rounded-xl text-xs font-bold transition-all"
                           style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
-                          {actionLoading === hospital.id + '_reject'
+                          {actionLoading === `${hospital.id}_rejected`
                             ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             : 'Reject'}
                         </button>
@@ -452,93 +631,9 @@ export default function HospitalsPage() {
                 </div>
               </div>
             )}
-
-            {/* ── TAB BAR + SEARCH ── */}
-            <div className="flex items-center gap-3 mb-4 flex-wrap">
-              <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-                {(['pending', 'all'] as const).map(t => (
-                  <button key={t} onClick={() => setTab(t)}
-                    className="px-4 py-2 text-xs font-bold capitalize transition-all"
-                    style={{
-                      background: tab === t ? 'rgba(139,92,246,0.15)' : 'transparent',
-                      color: tab === t ? '#a78bfa' : '#64748B',
-                    }}>
-                    {t === 'pending' ? `Pending (${pending.length})` : `All Hospitals (${hospitals.length})`}
-                  </button>
-                ))}
-              </div>
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#64748B' }} />
-                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search hospital, type, city"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm text-white focus:outline-none"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }} />
-              </div>
-            </div>
-
-            {/* ── HOSPITAL TABLE ── */}
-            {filtered.length === 0 ? (
-              <div className="panel-card py-16 flex flex-col items-center gap-4 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center">
-                  <Building2 className="w-7 h-7" style={{ color: '#475569' }} />
-                </div>
-                <div>
-                  <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
-                    {search ? 'No hospitals found for your search' : tab === 'pending' ? 'No pending requests' : 'No hospitals yet'}
-                  </p>
-                  <p className="text-xs mt-1" style={{ color: '#64748B' }}>
-                    {search ? 'Try a different keyword' : tab === 'pending' ? 'All hospitals have been processed.' : 'Hospitals will appear here once they self-register via the panel login page.'}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="panel-card overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                        {['Hospital', 'Type', 'City', 'Beds', 'Doctors', 'Approval', 'Subscription'].map(h => (
-                          <th key={h} className="px-4 py-3 text-[10px] font-black uppercase tracking-widest" style={{ color: '#2D4150' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filtered.map((hospital) => (
-                        <tr key={hospital.id} className="border-b" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                          <td className="px-4 py-3.5">
-                            <div>
-                              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{hospital.name}</p>
-                              {hospital.email && <p className="text-[10px] mt-0.5" style={{ color: '#475569' }}>{hospital.email}</p>}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3.5" style={{ color: '#94A3B8' }}>{hospital.hospitalType}</td>
-                          <td className="px-4 py-3.5" style={{ color: '#94A3B8' }}>{hospital.location}</td>
-                          <td className="px-4 py-3.5 text-white font-bold">{hospital.totalBeds || '—'}</td>
-                          <td className="px-4 py-3.5" style={{ color: '#94A3B8' }}>{hospital.doctorCount}</td>
-                          <td className="px-4 py-3.5">
-                            <button onClick={() => approveHospital(hospital.id, !hospital.isApproved)}
-                              className="px-3 py-1.5 rounded-xl text-xs font-bold"
-                              style={{ background: hospital.isApproved ? 'rgba(34,197,94,0.12)' : 'rgba(245,158,11,0.12)', color: hospital.isApproved ? '#4ade80' : '#f59e0b' }}>
-                              {hospital.isApproved ? '✓ Approved' : 'Approve'}
-                            </button>
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <button onClick={() => updateHospital(hospital.id, { isSubscribed: !hospital.isSubscribed } as Partial<Hospital>)}
-                              className="px-3 py-1.5 rounded-xl text-xs font-bold"
-                              style={{ background: hospital.isSubscribed ? 'rgba(139,92,246,0.12)' : 'rgba(148,163,184,0.12)', color: hospital.isSubscribed ? '#a78bfa' : '#94A3B8' }}>
-                              {hospital.isSubscribed ? 'Subscribed' : 'Unsubscribed'}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
           </>
         )}
       </main>
     </div>
   );
 }
-

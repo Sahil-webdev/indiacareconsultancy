@@ -6,6 +6,7 @@ import {
   Calendar, Users, Star, DollarSign, Clock, CheckCircle2, MapPin, Video, Loader2,
 } from 'lucide-react';
 import { useDoctorIdentity } from '@/lib/panelIdentity';
+import NotificationBell from '@/components/NotificationBell';
 
 const APPOINTMENTS = [
   { id: 1, patient: 'Rahul Sharma', age: 32, concern: 'Chest pain evaluation', date: 'Jun 18, 2026', time: '10:30 AM', type: 'In-Person', status: 'Confirmed' },
@@ -59,6 +60,7 @@ export default function DoctorDashboard() {
           <p className="text-[11px]" style={{ color: '#64748B' }}>{subtitle}</p>
         </div>
         <div className="flex items-center gap-2">
+          <NotificationBell />
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold text-emerald-400"
             style={{ borderColor: 'rgba(34,197,94,0.2)', background: 'rgba(34,197,94,0.08)' }}>
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />

@@ -3,9 +3,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
-  Stethoscope, Calendar, BarChart2, MapPin, Star, BadgeCheck, Bell, Clock, ArrowRight, Building2, Loader2,
+  Stethoscope, Calendar, BarChart2, MapPin, Star, BadgeCheck, Clock, ArrowRight, Building2, Loader2,
 } from 'lucide-react';
 import { useHospitalIdentity } from '@/lib/panelIdentity';
+import NotificationBell from '@/components/NotificationBell';
 
 const DOCTORS_LIST = [
   { name: 'Cardiology Team', speciality: 'Cardiology', rating: 4.9, appointments: 12, status: 'Active' },
@@ -47,9 +48,7 @@ export default function HospitalDashboard() {
             style={{ borderColor: 'rgba(34,197,94,0.2)', background: 'rgba(34,197,94,0.08)', color: '#22c55e' }}>
             <BadgeCheck className="w-3.5 h-3.5" /> {profile.accreditations[0] || 'Verified Listing'}
           </div>
-          <button className="relative w-9 h-9 rounded-xl flex items-center justify-center border" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}>
-            <Bell className="w-4 h-4" style={{ color: '#64748B' }} />
-          </button>
+          <NotificationBell />
         </div>
       </header>
 

@@ -9,6 +9,8 @@ type DoctorProfile = {
   name: string;
   email: string;
   phone: string;
+  photo: string;
+  medicalRegistrationNumber: string;
   qualification: string;
   speciality: string;
   experience: number;
@@ -19,6 +21,7 @@ type DoctorProfile = {
   consultationType: string;
   bio: string;
   hospitalName: string;
+  opdTimings: string;
   availability: string[];
   languages: string[];
   services: string[];
@@ -69,11 +72,13 @@ export default function DoctorProfilePage() {
     setError('');
     setSaved('');
     try {
-      await panelApi(`/api/doctors/${profile.id}`, {
+      const response = await panelApi<{ doctor?: DoctorProfile }>(`/api/doctors/${profile.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
           name: profile.name,
           phone: profile.phone,
+          photo: profile.photo,
+          medicalRegistrationNumber: profile.medicalRegistrationNumber,
           qualification: profile.qualification,
           speciality: profile.speciality,
           experience: profile.experience,
@@ -88,9 +93,15 @@ export default function DoctorProfilePage() {
           languages: toList(languagesText),
           services: toList(servicesText),
           awards: toList(awardsText),
-          opdTimings: '',
+          opdTimings: profile.opdTimings,
         }),
       });
+      if (response.doctor) {
+        setProfile(response.doctor);
+        setLanguagesText(response.doctor.languages.join(', '));
+        setServicesText(response.doctor.services.join(', '));
+        setAwardsText(response.doctor.awards.join(', '));
+      }
       setSaved('Profile changes submitted for super admin review.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -132,11 +143,14 @@ export default function DoctorProfilePage() {
           {[
             ['Full Name', 'name'],
             ['Phone', 'phone'],
+            ['Profile Photo URL', 'photo'],
+            ['Medical Registration Number', 'medicalRegistrationNumber'],
             ['Qualification', 'qualification'],
             ['Speciality', 'speciality'],
             ['Hospital Name', 'hospitalName'],
             ['City', 'location'],
             ['Area', 'area'],
+            ['OPD Timings', 'opdTimings'],
           ].map(([label, key]) => (
             <label key={key} className="panel-card p-4 block">
               <span className="text-[11px] font-semibold block mb-2" style={{ color: '#64748B' }}>{label}</span>
@@ -161,6 +175,20 @@ export default function DoctorProfilePage() {
             <input type="number" value={profile.consultationFee} onChange={(e) => setProfile({ ...profile, consultationFee: Number(e.target.value) })}
               className="w-full px-3.5 py-2.5 rounded-xl text-sm focus:outline-none"
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)' }} />
+          </label>
+
+          <label className="panel-card p-4 block">
+            <span className="text-[11px] font-semibold block mb-2" style={{ color: '#64748B' }}>Consultation Type</span>
+            <select
+              value={profile.consultationType}
+              onChange={(e) => setProfile({ ...profile, consultationType: e.target.value })}
+              className="w-full px-3.5 py-2.5 rounded-xl text-sm focus:outline-none"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)' }}
+            >
+              {['Online', 'Offline', 'Both'].map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
           </label>
         </div>
 

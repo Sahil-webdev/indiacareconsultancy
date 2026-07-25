@@ -10,10 +10,11 @@ import {
   Award, Stethoscope, Activity, Brain, Bone, Sparkles, Baby,
   Ear, ShieldAlert, Flame, Wind, Microscope, Ambulance
 } from 'lucide-react';
-import { HospitalMock, mockDB } from '@/lib/mockData';
+import { siteApi } from '@/lib/api';
+import { SiteDoctor, SiteHospital } from '@/lib/siteTypes';
 import HospitalBookingModal from '@/components/HospitalBookingModal';
 
-interface Props { hospital: HospitalMock; }
+interface Props { hospital: SiteHospital; }
 
 /* ─── Animated Ring ─── */
 function RingProgress({ pct, size = 80, stroke = 7, color = '#127A6A', label }: {
@@ -84,12 +85,33 @@ const INSURERS = ['Star Health', 'HDFC ERGO', 'Max Bupa', 'New India', 'Niva Bup
 export default function HospitalProfileClient({ hospital }: Props) {
   const [doctorIdx, setDoctorIdx] = useState(0);
   const [relatedIdx, setRelatedIdx] = useState(0);
+  const [linkedDoctors, setLinkedDoctors] = useState<SiteDoctor[]>([]);
+  const [relatedHospitals, setRelatedHospitals] = useState<SiteHospital[]>([]);
 
   // Hospital booking state
   const [isBookingOpen, setIsBookingOpen] = useState(false);
 
-  const linkedDoctors = mockDB.doctors.filter(d => d.hospitalId === hospital.id);
-  const relatedHospitals = mockDB.hospitals.filter(h => h.id !== hospital.id && h.location === hospital.location).slice(0, 3);
+  useEffect(() => {
+    async function loadRelatedData() {
+      try {
+        const [doctorResponse, hospitalResponse] = await Promise.all([
+          siteApi<{ doctors: SiteDoctor[] }>('/api/doctors'),
+          siteApi<{ hospitals: SiteHospital[] }>(`/api/hospitals?location=${encodeURIComponent(hospital.location)}`),
+        ]);
+
+        const doctors = (doctorResponse.doctors || []).filter((item) => item.hospitalName === hospital.name);
+        const hospitals = (hospitalResponse.hospitals || []).filter((item) => item.id !== hospital.id).slice(0, 3);
+
+        setLinkedDoctors(doctors);
+        setRelatedHospitals(hospitals);
+      } catch {
+        setLinkedDoctors([]);
+        setRelatedHospitals([]);
+      }
+    }
+
+    loadRelatedData();
+  }, [hospital.id, hospital.location, hospital.name]);
 
   const matchScore = Math.min(98, 72
     + (hospital.rating >= 4.8 ? 10 : hospital.rating >= 4.5 ? 5 : 0)

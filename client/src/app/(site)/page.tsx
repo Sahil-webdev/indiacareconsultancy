@@ -11,7 +11,9 @@ import {
   BadgeCheck, Zap, TrendingUp, MessageSquare, ChevronDown, ChevronLeft,
   Globe, Award, Lock
 } from 'lucide-react';
-import { INITIAL_DOCTORS, INITIAL_HOSPITALS, INITIAL_SPECIALITIES, HospitalMock } from '@/lib/mockData';
+import { INITIAL_SPECIALITIES } from '@/lib/mockData';
+import { siteApi } from '@/lib/api';
+import { SiteDoctor, SiteHospital } from '@/lib/siteTypes';
 import HospitalBookingModal from '@/components/HospitalBookingModal';
 
 /* ─────────────────────────────────────────────────────
@@ -396,6 +398,8 @@ function SpotlightCarousel({ items }: { items: any[] }) {
 ───────────────────────────────────────────────────── */
 export default function Homepage() {
   const router = useRouter();
+  const [doctors, setDoctors] = useState<SiteDoctor[]>([]);
+  const [hospitals, setHospitals] = useState<SiteHospital[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchLocation, setSearchLocation] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -410,6 +414,32 @@ export default function Homepage() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [promotedItems, setPromotedItems] = useState<any[]>([]);
   const [homeSpecs, setHomeSpecs] = useState<{ id: number; name: string; icon: string; description: string; color_preset: number }[]>([]);
+
+  useEffect(() => {
+    async function loadProfiles() {
+      try {
+        const [doctorResponse, hospitalResponse] = await Promise.all([
+          siteApi<{ doctors: Array<Omit<SiteDoctor, 'subscriptionPlan'> & { isSubscribed?: boolean }> }>('/api/doctors'),
+          siteApi<{ hospitals: Array<Omit<SiteHospital, 'subscriptionPlan'> & { isSubscribed?: boolean }> }>('/api/hospitals'),
+        ]);
+
+        setDoctors((doctorResponse.doctors || []).map((doctor) => ({
+          ...doctor,
+          subscriptionPlan: doctor.isSubscribed ? 'Premium' : 'Basic',
+          hospitalName: doctor.hospitalName || '',
+        })));
+        setHospitals((hospitalResponse.hospitals || []).map((hospital) => ({
+          ...hospital,
+          subscriptionPlan: hospital.isSubscribed ? 'Premium' : 'Basic',
+        })));
+      } catch {
+        setDoctors([]);
+        setHospitals([]);
+      }
+    }
+
+    loadProfiles();
+  }, []);
 
   // Fetch promoted profiles
   useEffect(() => {
@@ -468,7 +498,7 @@ export default function Homepage() {
     });
 
     // Match doctors
-    INITIAL_DOCTORS.forEach(d => {
+    doctors.forEach(d => {
       if (d.isApproved && d.name.toLowerCase().includes(q)) {
         suggestions.push({
           type: 'doctor',
@@ -480,7 +510,7 @@ export default function Homepage() {
     });
 
     // Match hospitals
-    INITIAL_HOSPITALS.forEach(h => {
+    hospitals.forEach(h => {
       if (h.name.toLowerCase().includes(q)) {
         suggestions.push({
           type: 'hospital',
@@ -522,15 +552,16 @@ export default function Homepage() {
     setShowSuggestions(false);
   };
 
-  const featuredDoctors = INITIAL_DOCTORS.filter(d => d.isApproved).slice(0, 4);
-  const featuredHospitals = INITIAL_HOSPITALS.filter(h => h.subscriptionPlan === 'Premium').slice(0, 3);
-  const locations = Array.from(new Set(INITIAL_DOCTORS.map(d => d.location)));
+  const featuredDoctors = doctors.filter(d => d.isApproved).slice(0, 4);
+  const featuredHospitals = hospitals.filter(h => h.subscriptionPlan === 'Premium').slice(0, 3);
+  const locations = Array.from(new Set(doctors.map(d => d.location)));
+  const sampleDoctor = featuredDoctors[0] || doctors[0] || null;
 
   // Hospital booking modal state
-  const [bookingHospital, setBookingHospital] = useState<HospitalMock | null>(null);
+  const [bookingHospital, setBookingHospital] = useState<SiteHospital | null>(null);
   const [isHospBookingOpen, setIsHospBookingOpen] = useState(false);
 
-  const handleBookHospital = (h: HospitalMock) => {
+  const handleBookHospital = (h: SiteHospital) => {
     setBookingHospital(h);
     setIsHospBookingOpen(true);
   };
@@ -1263,11 +1294,20 @@ export default function Homepage() {
               <div className="bg-white rounded-2xl p-5 border border-slate-100 mb-4">
                 <div className="flex items-center gap-3 mb-4">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={INITIAL_DOCTORS[0].photo} alt={INITIAL_DOCTORS[0].name} className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-sm" />
-                  <div>
-                    <h4 className="font-extrabold text-dark-navy text-sm">{INITIAL_DOCTORS[0].name}</h4>
-                    <p className="text-[10px] text-primary-green font-bold">{INITIAL_DOCTORS[0].speciality}</p>
-                  </div>
+                  {sampleDoctor ? (
+                    <>
+                      <img src={sampleDoctor.photo} alt={sampleDoctor.name} className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-sm" />
+                      <div>
+                        <h4 className="font-extrabold text-dark-navy text-sm">{sampleDoctor.name}</h4>
+                        <p className="text-[10px] text-primary-green font-bold">{sampleDoctor.speciality}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <h4 className="font-extrabold text-dark-navy text-sm">Verified doctor recommendations</h4>
+                      <p className="text-[10px] text-primary-green font-bold">Live data updates after approval and payment</p>
+                    </div>
+                  )}
                   <div className="ml-auto bg-primary-green/10 border border-primary-green/20 rounded-xl px-3 py-1.5 text-center">
                     <span className="text-lg font-extrabold text-primary-green leading-none">95%</span>
                     <p className="text-[9px] text-primary-green font-bold">Match</p>
@@ -1299,9 +1339,9 @@ export default function Homepage() {
           <h2 className="text-xl sm:text-2xl font-extrabold text-dark-navy mt-2">Trusted Hospital Partners</h2>
         </div>
         <div className="relative">
-          <motion.div animate={{ x: [0, -50 * INITIAL_HOSPITALS.length] }} transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
+          <motion.div animate={{ x: hospitals.length ? [0, -50 * hospitals.length] : [0, 0] }} transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
             className="flex gap-6 w-max">
-            {[...INITIAL_HOSPITALS, ...INITIAL_HOSPITALS].map((h, i) => (
+            {[...hospitals, ...hospitals].map((h, i) => (
               <Link key={i} href={`/hospitals/${h.id}`}
                 className="flex-shrink-0 flex items-center gap-3 bg-white border border-slate-100 rounded-2xl px-5 py-3.5 shadow-sm hover:border-primary-green/20 hover:shadow-md transition-all w-56">
                 <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 border border-slate-100">

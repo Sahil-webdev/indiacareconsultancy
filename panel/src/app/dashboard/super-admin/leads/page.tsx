@@ -23,8 +23,12 @@ import {
   Send,
   Stethoscope,
   UserCheck,
+  User,
   X,
   XCircle,
+  Copy,
+  Check,
+  Sparkles,
 } from 'lucide-react';
 import { panelApi } from '@/lib/api';
 
@@ -254,20 +258,20 @@ function ThreeDotMenu({ lead, onAction }: { lead: Lead; onAction: (action: typeo
 function BaseModal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center px-4"
-      style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
+      className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-6"
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-2xl rounded-3xl border shadow-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
-        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border-color)' }}>
-          <h3 className="font-extrabold text-base" style={{ color: 'var(--text-primary)' }}>{title}</h3>
-          <button onClick={onClose} style={{ color: '#64748B' }}>
-            <X className="w-4 h-4" />
+      <div className="w-full max-w-4xl rounded-3xl border shadow-2xl overflow-hidden flex flex-col max-h-[92vh]" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-surface)' }}>
+          <h3 className="font-black text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-slate-800/40 hover:bg-slate-700/60 flex items-center justify-center transition-colors" style={{ color: 'var(--text-muted)' }}>
+            <X className="w-4.5 h-4.5" />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="p-6 overflow-y-auto panel-scroll flex-1 space-y-6">{children}</div>
       </div>
     </div>
   );
@@ -363,11 +367,11 @@ export default function LeadsPage() {
     }
   }
 
-  async function handleVerifyPayment(leadId: string, action: 'approve' | 'reject') {
+  async function handleVerifyPayment(leadId: string, action: 'approve' | 'reject', utrNumberInput?: string) {
     try {
       await panelApi(`/api/leads/${leadId}/verify-payment`, {
         method: 'PATCH',
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, utrNumber: utrNumberInput }),
       });
       setSuccess(`Payment ${action === 'approve' ? 'verified' : 'rejected'} for Lead #L${leadId}`);
       await loadLeads();
@@ -681,21 +685,19 @@ export default function LeadsPage() {
                           <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                             <CheckCircle2 className="w-3 h-3" /> ₹9 Paid &amp; Verified
                           </span>
-                        ) : lead.utrNumber ? (
+                        ) : (
                           <div className="flex items-center gap-1.5">
                             <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                              ₹9 Pending (UTR: {lead.utrNumber})
+                              {lead.utrNumber ? `₹9 Pending (UTR: ${lead.utrNumber})` : '₹9 Payment Pending'}
                             </span>
                             <button
                               type="button"
-                              onClick={() => handleVerifyPayment(lead.id, 'approve')}
-                              className="px-2 py-0.5 rounded-lg bg-emerald-500 text-slate-950 text-[10px] font-extrabold flex items-center gap-1 shadow hover:bg-emerald-400"
+                              onClick={() => handleVerifyPayment(lead.id, 'approve', lead.utrNumber || undefined)}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 text-[10px] font-extrabold flex items-center gap-1 shadow hover:bg-emerald-400 cursor-pointer"
                             >
                               <CheckCircle2 className="w-3 h-3" /> Verify
                             </button>
                           </div>
-                        ) : (
-                          <span className="text-[10px] text-slate-500 font-medium">Unpaid</span>
                         )}
                       </td>
 
@@ -731,98 +733,216 @@ export default function LeadsPage() {
 
         {detailOpen && detail && (
           <BaseModal title={`Lead Details · ${detail.lead.patientName}`} onClose={() => setDetailOpen(false)}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
-              <div className="panel-card p-4">
-                <p className="font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Patient</p>
-                <div className="space-y-1" style={{ color: '#94A3B8' }}>
-                  <p>{detail.lead.patientName} · {detail.lead.patientAge} · {detail.lead.patientGender}</p>
-                  <p>{detail.lead.patientPhone} · {detail.lead.patientEmail}</p>
-                  <p>{detail.lead.patientCity}, {detail.lead.patientArea}</p>
-                </div>
-              </div>
-              <div className="panel-card p-4">
-                <p className="font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Medical Need</p>
-                <div className="space-y-1" style={{ color: '#94A3B8' }}>
-                  <p>{detail.lead.preferredSpeciality}</p>
-                  <p>{detail.lead.mainProblem}</p>
-                  <p>{detail.lead.symptoms}</p>
-                </div>
-              </div>
-              <div className="panel-card p-4">
-                <p className="font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Preferences</p>
-                <div className="space-y-1" style={{ color: '#94A3B8' }}>
-                  <p>Location: {detail.lead.preferredLocation}</p>
-                  <p>Budget: {detail.lead.budgetRange}</p>
-                  <p>Date/Time: {detail.lead.preferredDateTime}</p>
-                  <p>Hospital: {detail.lead.preferredHospital || 'Not specified'}</p>
-                </div>
-              </div>
-              <div className="panel-card p-4 border border-emerald-500/30">
-                <p className="font-bold mb-2 flex items-center justify-between" style={{ color: 'var(--text-primary)' }}>
-                  <span>₹9 Consultation Payment</span>
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${detail.lead.paymentStatus === 'Paid' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                    {detail.lead.paymentStatus || 'Pending Verification'}
-                  </span>
-                </p>
-                <div className="space-y-1.5" style={{ color: '#94A3B8' }}>
-                  <p>Fee: <span className="font-bold text-white">₹{detail.lead.consultationFee || 9} Token Fee</span></p>
-                  <p>UTR Ref: <span className="font-mono font-bold text-emerald-400">{detail.lead.utrNumber || 'None'}</span></p>
-                  {detail.lead.paymentStatus !== 'Paid' && detail.lead.utrNumber && (
-                    <div className="pt-2 flex gap-2">
+            <div className="space-y-6">
+
+              {/* 🌟 1. HERO PAYMENT VERIFICATION ACTION BANNER */}
+              <div
+                className="p-5 rounded-2xl border transition-all space-y-3"
+                style={
+                  detail.lead.paymentStatus === 'Paid'
+                    ? { background: 'linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(5,150,105,0.1) 100%)', borderColor: 'rgba(16,185,129,0.35)' }
+                    : { background: 'linear-gradient(135deg, rgba(245,158,11,0.18) 0%, rgba(217,119,6,0.12) 100%)', borderColor: 'rgba(245,158,11,0.4)' }
+                }
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold flex-shrink-0 ${
+                      detail.lead.paymentStatus === 'Paid' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                    }`}>
+                      {detail.lead.paymentStatus === 'Paid' ? <CheckCircle2 className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-black text-sm text-white">
+                          {detail.lead.paymentStatus === 'Paid' ? '₹9 Consultation Payment Verified & Approved' : '₹9 Consultation Fee Payment Verification Required'}
+                        </h4>
+                        <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                          detail.lead.paymentStatus === 'Paid' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/25 text-amber-300 border border-amber-500/40'
+                        }`}>
+                          {detail.lead.paymentStatus || 'Pending Verification'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 mt-0.5">
+                        Consultation Token Fee: <strong className="text-white">₹{detail.lead.consultationFee || 9}</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* APPROVE / REJECT BUTTONS (ALWAYS VISIBLE WHEN NOT PAID) */}
+                  {detail.lead.paymentStatus !== 'Paid' && (
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => handleVerifyPayment(detail.lead.id, 'approve')}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 font-black text-xs flex items-center gap-1 shadow"
+                        onClick={() => handleVerifyPayment(detail.lead.id, 'approve', detail.lead.utrNumber || undefined)}
+                        className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-all cursor-pointer"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Approve Payment
+                        <CheckCircle2 className="w-4 h-4" /> Approve ₹9 Payment
                       </button>
                       <button
                         type="button"
                         onClick={() => handleVerifyPayment(detail.lead.id, 'reject')}
-                        className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-400 font-bold text-xs flex items-center gap-1 border border-red-500/30"
+                        className="px-3.5 py-2 rounded-xl bg-red-500/20 text-red-300 hover:text-white hover:bg-red-500/30 font-bold text-xs flex items-center gap-1 border border-red-500/30 transition-all cursor-pointer"
                       >
-                        <XCircle className="w-3.5 h-3.5" /> Reject
+                        <XCircle className="w-4 h-4 text-red-400" /> Reject
                       </button>
                     </div>
                   )}
                 </div>
-              </div>
-              <div className="panel-card p-4">
-                <p className="font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Workflow</p>
-                <div className="space-y-1" style={{ color: '#94A3B8' }}>
-                  <p>Assigned: {detail.lead.assignedConsultantName}</p>
-                  <p>Stage: {detail.lead.pipelineStage}</p>
-                  <p>Priority: {detail.lead.priority}</p>
-                  <p>Follow-up: {detail.lead.followUpAt ? new Date(detail.lead.followUpAt).toLocaleString('en-IN') : 'Not scheduled'}</p>
-                </div>
-              </div>
-            </div>
 
-            <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="panel-card p-4">
-                <p className="font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Notes</p>
-                <div className="space-y-2 max-h-56 overflow-y-auto">
-                  {detail.notes.length === 0 ? <p style={{ color: '#64748B' }}>No notes yet.</p> : detail.notes.map((note) => (
-                    <div key={note.id} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <p style={{ color: '#94A3B8' }}>{note.note}</p>
-                      <p className="text-[10px] mt-1" style={{ color: '#64748B' }}>{note.authorName} · {formatTimeAgo(note.createdAt)}</p>
+                {/* UTR Reference Details & Editable Input */}
+                <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 font-bold uppercase text-[10px]">12-Digit UTR Ref:</span>
+                    {detail.lead.utrNumber ? (
+                      <span className="font-mono font-black text-emerald-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-white/10 text-xs">
+                        {detail.lead.utrNumber}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 italic text-[11px] bg-slate-900/60 px-2.5 py-1 rounded-lg border border-white/10">
+                        No UTR entered by patient (Super Admin can approve directly)
+                      </span>
+                    )}
+                  </div>
+
+                  {detail.lead.utrNumber && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(detail.lead.utrNumber || '');
+                        setSuccess('UTR copied to clipboard');
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-slate-900/80 text-emerald-300 hover:text-white border border-white/10 text-[10px] font-bold flex items-center gap-1"
+                    >
+                      <Copy className="w-3 h-3" /> Copy UTR
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 🌟 2. GRID INFO CARDS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                {/* Patient Credentials Card */}
+                <div className="panel-card p-4 space-y-2.5">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                    <User className="w-4 h-4" /> Patient Credentials
+                  </h4>
+                  <div className="space-y-1.5 text-slate-300">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Full Name:</span>
+                      <span className="font-bold text-white text-sm">{detail.lead.patientName}</span>
                     </div>
-                  ))}
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Age / Gender:</span>
+                      <span className="font-bold text-white">{detail.lead.patientAge} yrs · {detail.lead.patientGender}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Mobile Phone:</span>
+                      <div className="flex items-center gap-2 font-mono font-bold text-white">
+                        <span>{detail.lead.patientPhone}</span>
+                        <a href={`tel:${detail.lead.patientPhone}`} className="p-1 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30">
+                          <Phone className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Email:</span>
+                      <span className="font-semibold text-slate-200">{detail.lead.patientEmail || 'Not provided'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">City / Area:</span>
+                      <span className="font-bold text-white">{detail.lead.patientCity}, {detail.lead.patientArea || 'General'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Medical Need Card */}
+                <div className="panel-card p-4 space-y-2.5">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                    <Stethoscope className="w-4 h-4" /> Medical Need &amp; Problem
+                  </h4>
+                  <div className="space-y-1.5 text-slate-300">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Speciality:</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-extrabold text-[11px] border border-emerald-500/30">
+                        {detail.lead.preferredSpeciality}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">Primary Problem:</span>
+                      <p className="font-bold text-white bg-slate-900/80 p-2.5 rounded-xl border border-white/10 text-xs leading-relaxed">
+                        {detail.lead.mainProblem}
+                      </p>
+                    </div>
+                    {detail.lead.symptoms && (
+                      <div>
+                        <span className="text-slate-400 block mb-0.5">Symptoms &amp; Duration:</span>
+                        <p className="text-slate-300 italic">{detail.lead.symptoms} ({detail.lead.duration || 'N/A'})</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Patient Preferences Card */}
+                <div className="panel-card p-4 space-y-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4" /> Consultation Preferences
+                  </h4>
+                  <div className="space-y-1 text-slate-300">
+                    <p><span className="text-slate-400">Preferred Location:</span> <strong className="text-white">{detail.lead.preferredLocation}</strong></p>
+                    <p><span className="text-slate-400">Budget Range:</span> <strong className="text-white">{detail.lead.budgetRange}</strong></p>
+                    <p><span className="text-slate-400">Preferred Date/Time:</span> <strong className="text-white">{detail.lead.preferredDateTime || 'ASAP'}</strong></p>
+                    <p><span className="text-slate-400">Preferred Doctor Gender:</span> <strong className="text-white">{detail.lead.preferredDoctorGender}</strong></p>
+                    <p><span className="text-slate-400">Hospital / Clinic:</span> <strong className="text-white">{detail.lead.preferredHospital || 'ICC Suggestion'}</strong></p>
+                  </div>
+                </div>
+
+                {/* Workflow & Priority Card */}
+                <div className="panel-card p-4 space-y-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                    <UserCheck className="w-4 h-4" /> Workflow &amp; Assignment
+                  </h4>
+                  <div className="space-y-1 text-slate-300">
+                    <p><span className="text-slate-400">Assigned Consultant:</span> <strong className="text-white">{detail.lead.assignedConsultantName}</strong></p>
+                    <p><span className="text-slate-400">Pipeline Stage:</span> <strong className="text-emerald-400">{detail.lead.pipelineStage}</strong></p>
+                    <p><span className="text-slate-400">Priority Level:</span> <strong className="text-amber-400">{detail.lead.priority}</strong></p>
+                    <p><span className="text-slate-400">Scheduled Follow-up:</span> <strong className="text-white">{detail.lead.followUpAt ? new Date(detail.lead.followUpAt).toLocaleString('en-IN') : 'Not scheduled'}</strong></p>
+                  </div>
                 </div>
               </div>
-              <div className="panel-card p-4">
-                <p className="font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Recommendations</p>
-                <div className="space-y-2" style={{ color: '#94A3B8' }}>
-                  <div>
-                    <p className="text-xs font-semibold mb-1">Doctors</p>
-                    {detail.recommendedDoctors.length === 0 ? <p>No doctors suggested yet.</p> : detail.recommendedDoctors.map((item) => <p key={item.id}>{item.name} · {item.speciality}</p>)}
+
+              {/* 🌟 3. NOTES & RECOMMENDATIONS SECTION */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="panel-card p-4">
+                  <h4 className="font-bold text-white mb-2">Internal Notes ({detail.notes.length})</h4>
+                  <div className="space-y-2 max-h-44 overflow-y-auto">
+                    {detail.notes.length === 0 ? <p className="text-slate-500 italic">No notes recorded yet.</p> : detail.notes.map((note) => (
+                      <div key={note.id} className="rounded-xl p-3 bg-slate-900 border border-white/10">
+                        <p className="text-slate-200">{note.note}</p>
+                        <p className="text-[10px] text-slate-500 mt-1">{note.authorName} · {formatTimeAgo(note.createdAt)}</p>
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <p className="text-xs font-semibold mb-1">Hospitals</p>
-                    {detail.recommendedHospitals.length === 0 ? <p>No hospitals suggested yet.</p> : detail.recommendedHospitals.map((item) => <p key={item.id}>{item.name} · {item.city}</p>)}
+                </div>
+
+                <div className="panel-card p-4">
+                  <h4 className="font-bold text-white mb-2">Doctor &amp; Hospital Recommendations</h4>
+                  <div className="space-y-2 text-slate-300">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Recommended Doctors</p>
+                      {detail.recommendedDoctors.length === 0 ? (
+                        <p className="text-slate-500 italic">No doctors suggested yet.</p>
+                      ) : (
+                        detail.recommendedDoctors.map((item) => (
+                          <div key={item.id} className="text-xs font-bold text-emerald-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-white/10 mb-1">
+                            {item.name} · {item.speciality} ({item.city})
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
+
             </div>
           </BaseModal>
         )}

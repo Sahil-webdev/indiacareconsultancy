@@ -142,20 +142,27 @@ router.patch('/:id/verify-payment', protect, async (req, res, next) => {
     if (!['super_admin', 'consultant'].includes(req.user.role)) {
       return res.status(403).json({ success: false, message: 'Forbidden: Super Admin access required' });
     }
-    const { action } = req.body; // 'approve' | 'reject'
+    const { action, utrNumber } = req.body; // 'approve' | 'reject'
     const newStatus = action === 'approve' ? 'Paid' : 'Failed';
     const pool = getPool();
 
-    await pool.execute(
-      'UPDATE leads SET payment_status = ? WHERE id = ?',
-      [newStatus, req.params.id]
-    );
+    if (utrNumber && utrNumber.trim()) {
+      await pool.execute(
+        'UPDATE leads SET payment_status = ?, utr_number = ? WHERE id = ?',
+        [newStatus, utrNumber.trim(), req.params.id]
+      );
+    } else {
+      await pool.execute(
+        'UPDATE leads SET payment_status = ? WHERE id = ?',
+        [newStatus, req.params.id]
+      );
+    }
 
     // Also update payments table if exists
     try {
       await pool.execute(
-        "UPDATE payments SET status = ? WHERE entity_type = 'patient' AND entity_id = ?",
-        [action === 'approve' ? 'Paid' : 'Failed', req.params.id]
+        "UPDATE payments SET status = ?, transaction_ref = COALESCE(?, transaction_ref) WHERE entity_type = 'patient' AND entity_id = ?",
+        [action === 'approve' ? 'Paid' : 'Failed', utrNumber?.trim() || null, req.params.id]
       );
     } catch (pe) {}
 

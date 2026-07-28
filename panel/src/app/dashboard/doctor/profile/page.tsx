@@ -63,8 +63,11 @@ export default function DoctorProfilePage() {
       try {
         const response = await panelApi<{ doctor: DoctorProfile }>('/api/doctors/me/profile');
         const doc = response.doctor;
+        // Clear server-side default placeholder paths that cause 404 on panel
+        const photoUrl = doc.photo && !doc.photo.includes('default-doctor') ? doc.photo : '';
         setProfile({
           ...doc,
+          photo: photoUrl,
           gender: doc.gender || 'Male',
           languages: doc.languages || ['English', 'Hindi'],
           services: doc.services || ['General Consultation', 'ECG Interpretation', 'Hypertension Management'],
@@ -387,7 +390,12 @@ export default function DoctorProfilePage() {
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-2xl bg-slate-900/90 border border-white/10">
                     <div className="relative">
                       {profile.photo ? (
-                        <img src={profile.photo} alt={profile.name} className="w-20 h-20 rounded-2xl object-cover border-2 border-emerald-400 shadow-md" />
+                        <img
+                          src={profile.photo}
+                          alt={profile.name}
+                          className="w-20 h-20 rounded-2xl object-cover border-2 border-emerald-400 shadow-md"
+                          onError={() => setProfile(prev => prev ? { ...prev, photo: '' } : prev)}
+                        />
                       ) : (
                         <div className="w-20 h-20 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-black text-2xl border-2 border-emerald-400/40">
                           {profile.name[0]}
@@ -662,7 +670,12 @@ export default function DoctorProfilePage() {
                   <div className="flex items-center gap-5">
                     <div className="relative">
                       {profile.photo ? (
-                        <img src={profile.photo} alt={profile.name} className="w-24 h-24 rounded-3xl object-cover border-2 border-emerald-400 shadow-xl" />
+                        <img
+                          src={profile.photo}
+                          alt={profile.name}
+                          className="w-24 h-24 rounded-3xl object-cover border-2 border-emerald-400 shadow-xl"
+                          onError={() => setProfile(prev => prev ? { ...prev, photo: '' } : prev)}
+                        />
                       ) : (
                         <div className="w-24 h-24 rounded-3xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-black text-3xl border-2 border-emerald-400">
                           {profile.name[0]}

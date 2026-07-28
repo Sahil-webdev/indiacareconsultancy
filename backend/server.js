@@ -51,8 +51,9 @@ app.options('*', cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// ── Body parser
-app.use(express.json());
+// ── Body parser (50MB limit to support base64 photo uploads from doctor panel)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ── Health check
 app.get('/api/health', (req, res) => {

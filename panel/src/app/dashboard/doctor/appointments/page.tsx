@@ -7,7 +7,7 @@ import {
   Search, MoreVertical, FileText, Pill, ClipboardList, CalendarClock, Printer,
   Download, Plus, Trash2, X, Mic, MicOff, VideoOff, PhoneOff, Activity, Heart,
   Thermometer, Weight, Check, Syringe, PhoneCall, Ticket, Share2, RefreshCw,
-  Tag, Link2, Volume2, VolumeX, Radio, ShieldCheck
+  Tag, Link2, Volume2, VolumeX, Radio, ShieldCheck, Info, Sparkles
 } from 'lucide-react';
 
 export type AppointmentMode = 'Clinic Visit' | 'Video Consult' | 'Phone Consult';
@@ -172,9 +172,9 @@ const statusBadge = (s: string) => ({
 }[s] || 'bg-slate-500/15 text-slate-400');
 
 const modeBadgeStyle = (m: AppointmentMode) => {
-  if (m === 'Clinic Visit') return { color: '#25B89A', background: 'rgba(37,184,154,0.12)', border: '1px solid rgba(37,184,154,0.25)' };
-  if (m === 'Video Consult') return { color: '#38BDF8', background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.25)' };
-  return { color: '#A855F7', background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.25)' };
+  if (m === 'Clinic Visit') return { color: '#25B89A', background: 'rgba(37,184,154,0.12)', border: '1px solid rgba(37,184,154,0.3)', leftBorder: 'border-l-4 border-emerald-500' };
+  if (m === 'Video Consult') return { color: '#38BDF8', background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.3)', leftBorder: 'border-l-4 border-sky-400' };
+  return { color: '#C084FC', background: 'rgba(192,132,252,0.12)', border: '1px solid rgba(192,132,252,0.3)', leftBorder: 'border-l-4 border-purple-500' };
 };
 
 export default function DoctorAppointmentsPage() {
@@ -216,6 +216,10 @@ export default function DoctorAppointmentsPage() {
     showToast(`Appointment status updated to ${newStatus}`);
   };
 
+  const clinicCount = appointments.filter(a => a.mode === 'Clinic Visit').length;
+  const videoCount = appointments.filter(a => a.mode === 'Video Consult').length;
+  const phoneCount = appointments.filter(a => a.mode === 'Phone Consult').length;
+
   const filtered = appointments.filter(a =>
     a.patient.toLowerCase().includes(search.toLowerCase()) &&
     (statusFilter ? a.status === statusFilter : true) &&
@@ -228,30 +232,81 @@ export default function DoctorAppointmentsPage() {
       <header className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
         <div>
           <h1 className="font-extrabold text-lg" style={{ color: 'var(--text-primary)' }}>My Appointments</h1>
-          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Compatible with Clinic Visit, Video Consult &amp; Phone Consult</p>
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Patient Preferred Modes: Clinic Visit, Video Consult, Phone Consult</p>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto panel-scroll p-6">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-          {[
-            { icon: Calendar,     label: 'Today Consultations', value: appointments.filter(a => a.status === 'Confirmed').length, color: 'bg-indigo-500' },
-            { icon: Syringe,      label: 'Clinic Visits',       value: appointments.filter(a => a.mode === 'Clinic Visit').length,  color: 'bg-emerald-500' },
-            { icon: Video,        label: 'Video Consults',      value: appointments.filter(a => a.mode === 'Video Consult').length, color: 'bg-sky-500' },
-            { icon: PhoneCall,    label: 'Phone Consults',      value: appointments.filter(a => a.mode === 'Phone Consult').length, color: 'bg-purple-500' },
-          ].map((s, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}
-              className="panel-card p-4 flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl ${s.color} flex items-center justify-center shadow-lg shadow-black/20`}>
-                <s.icon className="w-4 h-4 text-white" />
+      <main className="flex-1 overflow-y-auto panel-scroll p-6 space-y-6">
+        {/* 🌟 1. DEDICATED MODE IDENTIFICATION SUMMARY BAR */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Clinic Visit Card */}
+          <div
+            onClick={() => setModeFilter(modeFilter === 'Clinic Visit' ? '' : 'Clinic Visit')}
+            className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between shadow-lg ${modeFilter === 'Clinic Visit' ? 'bg-emerald-500/20 border-emerald-400 ring-2 ring-emerald-500/40' : 'bg-slate-900/80 border-emerald-500/30 hover:bg-emerald-500/10'}`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 font-black">
+                <Syringe className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{s.value}</p>
-                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{s.label}</p>
+                <p className="text-xs font-black text-white flex items-center gap-1.5">
+                  Clinic Visits (In-Person)
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                </p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Patients coming to OPD Chamber</p>
               </div>
-            </motion.div>
-          ))}
+            </div>
+            <div className="text-right">
+              <span className="text-2xl font-black text-emerald-400">{clinicCount}</span>
+              <p className="text-[9px] text-slate-400 uppercase font-bold">Patients</p>
+            </div>
+          </div>
+
+          {/* Video Consult Card */}
+          <div
+            onClick={() => setModeFilter(modeFilter === 'Video Consult' ? '' : 'Video Consult')}
+            className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between shadow-lg ${modeFilter === 'Video Consult' ? 'bg-sky-500/20 border-sky-400 ring-2 ring-sky-500/40' : 'bg-slate-900/80 border-sky-500/30 hover:bg-sky-500/10'}`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center border border-sky-500/30 font-black">
+                <Video className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-black text-white flex items-center gap-1.5">
+                  Video Consults (Online)
+                  <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+                </p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Joining via HD Video link</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl font-black text-sky-400">{videoCount}</span>
+              <p className="text-[9px] text-slate-400 uppercase font-bold">Patients</p>
+            </div>
+          </div>
+
+          {/* Phone Consult Card */}
+          <div
+            onClick={() => setModeFilter(modeFilter === 'Phone Consult' ? '' : 'Phone Consult')}
+            className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between shadow-lg ${modeFilter === 'Phone Consult' ? 'bg-purple-500/20 border-purple-400 ring-2 ring-purple-500/40' : 'bg-slate-900/80 border-purple-500/30 hover:bg-purple-500/10'}`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30 font-black">
+                <PhoneCall className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-black text-white flex items-center gap-1.5">
+                  Phone Consults (Voice)
+                  <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                </p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Voice call on mobile number</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl font-black text-purple-400">{phoneCount}</span>
+              <p className="text-[9px] text-slate-400 uppercase font-bold">Patients</p>
+            </div>
+          </div>
         </div>
 
         {/* Table Card */}
@@ -264,15 +319,21 @@ export default function DoctorAppointmentsPage() {
                 style={{ background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
             </div>
 
-            {/* Mode Filter */}
+            {/* Quick Mode Filter Tabs */}
             <div className="flex flex-wrap gap-1.5">
-              {['', 'Clinic Visit', 'Video Consult', 'Phone Consult'].map(m => (
-                <button key={m} onClick={() => setModeFilter(m)}
-                  className="px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all"
-                  style={modeFilter === m
-                    ? { background: 'rgba(56,189,248,0.25)', color: '#38BDF8', border: '1px solid rgba(56,189,248,0.3)' }
+              {[
+                { label: 'All Modes', value: '', count: appointments.length },
+                { label: '💉 Clinic Visit', value: 'Clinic Visit', count: clinicCount },
+                { label: '📹 Video Consult', value: 'Video Consult', count: videoCount },
+                { label: '📞 Phone Consult', value: 'Phone Consult', count: phoneCount },
+              ].map(m => (
+                <button key={m.value} onClick={() => setModeFilter(m.value)}
+                  className="px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1.5"
+                  style={modeFilter === m.value
+                    ? { background: 'rgba(37,184,154,0.25)', color: '#25B89A', border: '1px solid rgba(37,184,154,0.4)' }
                     : { color: 'var(--text-muted)', background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)' }}>
-                  {m || 'All Modes'}
+                  <span>{m.label}</span>
+                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-white/10">{m.count}</span>
                 </button>
               ))}
             </div>
@@ -284,223 +345,239 @@ export default function DoctorAppointmentsPage() {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  {['Patient', 'Contact', 'Date & Time', 'Consultation Mode', 'Reason for Visit', 'Fee', 'Status', 'Action'].map(h => (
+                  {['Patient', 'Contact', 'Date & Time', 'Preferred Mode', 'Reason for Visit', 'Fee', 'Status', 'Action'].map(h => (
                     <th key={h} className="px-4 py-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((a, i) => (
-                  <motion.tr key={a.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
-                    className="border-b transition-colors hover:bg-white/[0.02]" style={{ borderColor: 'var(--border-color)' }}>
-                    
-                    {/* Patient Name */}
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 text-emerald-400 flex items-center justify-center font-black text-xs border border-emerald-500/30">
-                          {a.patient[0]}
+                {filtered.map((a, i) => {
+                  const modeStyle = modeBadgeStyle(a.mode);
+                  return (
+                    <motion.tr
+                      key={a.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: i * 0.04 }}
+                      className={`border-b transition-colors hover:bg-white/[0.03] ${modeStyle.leftBorder}`}
+                      style={{ borderColor: 'var(--border-color)' }}
+                    >
+                      {/* Patient Name with Mode Tag */}
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 text-emerald-400 flex items-center justify-center font-black text-xs border border-emerald-500/30">
+                            {a.patient[0]}
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm text-white flex items-center gap-1.5">
+                              {a.patient}
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+                              <span>{a.age}y · {a.gender || 'N/A'}</span>
+                              <span className="text-slate-500">|</span>
+                              <span className="font-bold" style={{ color: modeStyle.color }}>
+                                {a.mode === 'Clinic Visit' && '💉 In-Person'}
+                                {a.mode === 'Video Consult' && '📹 Video Call'}
+                                {a.mode === 'Phone Consult' && '📞 Voice Call'}
+                              </span>
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{a.patient}</p>
-                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{a.age} yrs · {a.gender || 'N/A'}</p>
-                        </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Phone */}
-                    <td className="px-4 py-3.5">
-                      <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}><Phone className="w-3 h-3 text-emerald-500/70" />{a.phone}</span>
-                    </td>
+                      {/* Phone */}
+                      <td className="px-4 py-3.5">
+                        <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}><Phone className="w-3 h-3 text-emerald-500/70" />{a.phone}</span>
+                      </td>
 
-                    {/* Date & Time */}
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{a.date}</p>
-                      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{a.time}</p>
-                    </td>
+                      {/* Date & Time */}
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{a.date}</p>
+                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{a.time}</p>
+                      </td>
 
-                    {/* Consultation Mode (3 Modes Compatibility) */}
-                    <td className="px-4 py-3.5">
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-lg" style={modeBadgeStyle(a.mode)}>
-                        {a.mode === 'Clinic Visit' && <Syringe className="w-3 h-3" />}
-                        {a.mode === 'Video Consult' && <Video className="w-3 h-3" />}
-                        {a.mode === 'Phone Consult' && <PhoneCall className="w-3 h-3" />}
-                        {a.mode}
-                      </span>
-                    </td>
+                      {/* Consultation Mode Column Badge */}
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-black px-3 py-1 rounded-xl shadow-sm" style={modeStyle}>
+                          {a.mode === 'Clinic Visit' && <Syringe className="w-3.5 h-3.5" />}
+                          {a.mode === 'Video Consult' && <Video className="w-3.5 h-3.5" />}
+                          {a.mode === 'Phone Consult' && <PhoneCall className="w-3.5 h-3.5" />}
+                          {a.mode}
+                        </span>
+                      </td>
 
-                    {/* Reason */}
-                    <td className="px-4 py-3.5 max-w-[180px] truncate" style={{ color: 'var(--text-secondary)' }} title={a.reason}>{a.reason}</td>
+                      {/* Reason */}
+                      <td className="px-4 py-3.5 max-w-[180px] truncate" style={{ color: 'var(--text-secondary)' }} title={a.reason}>{a.reason}</td>
 
-                    {/* Fee */}
-                    <td className="px-4 py-3.5 font-bold" style={{ color: 'var(--text-primary)' }}>₹{a.fee}</td>
+                      {/* Fee */}
+                      <td className="px-4 py-3.5 font-bold" style={{ color: 'var(--text-primary)' }}>₹{a.fee}</td>
 
-                    {/* Status */}
-                    <td className="px-4 py-3.5">
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${statusBadge(a.status)}`}>{a.status}</span>
-                    </td>
+                      {/* Status */}
+                      <td className="px-4 py-3.5">
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${statusBadge(a.status)}`}>{a.status}</span>
+                      </td>
 
-                    {/* 3-DOT ACTION MENU BUTTON */}
-                    <td className="px-4 py-3.5 relative dot-menu-container">
-                      <button
-                        onClick={() => setOpenMenuId(openMenuId === a.id ? null : a.id)}
-                        className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:bg-white/10"
-                        style={{ color: 'var(--text-primary)', background: openMenuId === a.id ? 'rgba(37,184,154,0.2)' : 'transparent', border: openMenuId === a.id ? '1px solid rgba(37,184,154,0.4)' : '1px solid transparent' }}
-                        title="Doctor Actions for Mode"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
+                      {/* 3-DOT ACTION MENU BUTTON */}
+                      <td className="px-4 py-3.5 relative dot-menu-container">
+                        <button
+                          onClick={() => setOpenMenuId(openMenuId === a.id ? null : a.id)}
+                          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:bg-white/10"
+                          style={{ color: 'var(--text-primary)', background: openMenuId === a.id ? 'rgba(37,184,154,0.2)' : 'transparent', border: openMenuId === a.id ? '1px solid rgba(37,184,154,0.4)' : '1px solid transparent' }}
+                          title="Actions for Mode"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
 
-                      {/* Dropdown Menu */}
-                      <AnimatePresence>
-                        {openMenuId === a.id && (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.94, y: -6 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.94, y: -6 }}
-                            transition={{ duration: 0.15 }}
-                            className="absolute right-4 top-12 z-50 w-60 rounded-2xl p-2 shadow-2xl border backdrop-blur-2xl"
-                            style={{
-                              background: 'rgba(10, 18, 30, 0.97)',
-                              borderColor: 'rgba(37, 184, 154, 0.3)',
-                              boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
-                            }}
-                          >
-                            <div className="px-3 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500 border-b border-white/10 mb-1 flex items-center justify-between">
-                              <span>Mode Actions</span>
-                              <span className="text-[9px] text-sky-400">{a.mode}</span>
-                            </div>
-
-                            {/* ── MODE SPECIFIC ACTIONS ── */}
-
-                            {/* MODE 1: Clinic Visit Actions */}
-                            {a.mode === 'Clinic Visit' && (
-                              <>
-                                <button
-                                  onClick={() => { setSelectedApt(a); setActiveModal('token'); setOpenMenuId(null); }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 transition-all text-left my-0.5 border border-emerald-500/30"
-                                >
-                                  <Ticket className="w-4 h-4 text-emerald-400" /> Clinic Queue Token &amp; Chamber
-                                </button>
-                                <button
-                                  onClick={() => { setSelectedApt(a); setActiveModal('prescription'); setOpenMenuId(null); }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-emerald-500/10 hover:text-emerald-400 transition-all text-left"
-                                >
-                                  <Printer className="w-4 h-4 text-emerald-400" /> Print OPD Prescription Slip
-                                </button>
-                              </>
-                            )}
-
-                            {/* MODE 2: Video Consult Actions */}
-                            {a.mode === 'Video Consult' && a.status !== 'Cancelled' && (
-                              <>
-                                <button
-                                  onClick={() => { setSelectedApt(a); setActiveModal('video'); setOpenMenuId(null); }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-sky-300 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/30 transition-all text-left my-0.5"
-                                >
-                                  <Video className="w-4 h-4 text-sky-400 animate-pulse" /> Start Video Consultation
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(`https://meet.indiacare.com/video/${a.id}`);
-                                    setOpenMenuId(null);
-                                    showToast(`Video meeting join link copied & sent to ${a.phone}`);
-                                  }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-sky-500/10 hover:text-sky-400 transition-all text-left"
-                                >
-                                  <Share2 className="w-4 h-4 text-sky-400" /> Re-Send Video Join Link
-                                </button>
-                              </>
-                            )}
-
-                            {/* MODE 3: Phone Consult Actions */}
-                            {a.mode === 'Phone Consult' && a.status !== 'Cancelled' && (
-                              <>
-                                <button
-                                  onClick={() => { setSelectedApt(a); setActiveModal('phoneCall'); setOpenMenuId(null); }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 transition-all text-left my-0.5"
-                                >
-                                  <PhoneCall className="w-4 h-4 text-purple-400 animate-bounce" /> Start Voice Tele-Consult
-                                </button>
-                                <a
-                                  href={`tel:${a.phone}`}
-                                  onClick={() => setOpenMenuId(null)}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-purple-500/10 hover:text-purple-400 transition-all text-left"
-                                >
-                                  <Phone className="w-4 h-4 text-purple-400" /> Instant Direct Dial
-                                </a>
-                              </>
-                            )}
-
-                            <div className="h-[1px] my-1 bg-white/10" />
-                            <p className="px-3 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Universal Actions</p>
-
-                            {/* Universal Option 1: View Details */}
-                            <button
-                              onClick={() => { setSelectedApt(a); setActiveModal('view'); setOpenMenuId(null); }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-emerald-500/15 hover:text-emerald-400 transition-all text-left group"
+                        {/* Dropdown Menu */}
+                        <AnimatePresence>
+                          {openMenuId === a.id && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.94, y: -6 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.94, y: -6 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute right-4 top-12 z-50 w-60 rounded-2xl p-2 shadow-2xl border backdrop-blur-2xl"
+                              style={{
+                                background: 'rgba(10, 18, 30, 0.97)',
+                                borderColor: 'rgba(37, 184, 154, 0.3)',
+                                boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
+                              }}
                             >
-                              <Eye className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" /> View Medical Card
-                            </button>
+                              <div className="px-3 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500 border-b border-white/10 mb-1 flex items-center justify-between">
+                                <span>Mode Actions</span>
+                                <span className="text-[9px] font-bold" style={{ color: modeStyle.color }}>{a.mode}</span>
+                              </div>
 
-                            {/* Universal Option 2: Write/View Prescription */}
-                            <button
-                              onClick={() => { setSelectedApt(a); setActiveModal('prescription'); setOpenMenuId(null); }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-sky-500/15 hover:text-sky-400 transition-all text-left group"
-                            >
-                              <Pill className="w-4 h-4 text-sky-400 group-hover:scale-110 transition-transform" />
-                              {a.prescription ? 'View Digital Rx' : 'Write Prescription (Rx)'}
-                            </button>
+                              {/* MODE 1: Clinic Visit Actions */}
+                              {a.mode === 'Clinic Visit' && (
+                                <>
+                                  <button
+                                    onClick={() => { setSelectedApt(a); setActiveModal('token'); setOpenMenuId(null); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 transition-all text-left my-0.5 border border-emerald-500/30"
+                                  >
+                                    <Ticket className="w-4 h-4 text-emerald-400" /> Clinic Queue Token &amp; Chamber
+                                  </button>
+                                  <button
+                                    onClick={() => { setSelectedApt(a); setActiveModal('prescription'); setOpenMenuId(null); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-emerald-500/10 hover:text-emerald-400 transition-all text-left"
+                                  >
+                                    <Printer className="w-4 h-4 text-emerald-400" /> Print OPD Prescription Slip
+                                  </button>
+                                </>
+                              )}
 
-                            {/* Universal Option 3: Add Clinical Notes */}
-                            <button
-                              onClick={() => { setSelectedApt(a); setActiveModal('notes'); setOpenMenuId(null); }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-indigo-500/15 hover:text-indigo-400 transition-all text-left group"
-                            >
-                              <ClipboardList className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" /> Clinical Notes &amp; Vitals
-                            </button>
+                              {/* MODE 2: Video Consult Actions */}
+                              {a.mode === 'Video Consult' && a.status !== 'Cancelled' && (
+                                <>
+                                  <button
+                                    onClick={() => { setSelectedApt(a); setActiveModal('video'); setOpenMenuId(null); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-sky-300 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/30 transition-all text-left my-0.5"
+                                  >
+                                    <Video className="w-4 h-4 text-sky-400 animate-pulse" /> Start Video Consultation
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(`https://meet.indiacare.com/video/${a.id}`);
+                                      setOpenMenuId(null);
+                                      showToast(`Video meeting join link copied & sent to ${a.phone}`);
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-sky-500/10 hover:text-sky-400 transition-all text-left"
+                                  >
+                                    <Share2 className="w-4 h-4 text-sky-400" /> Re-Send Video Join Link
+                                  </button>
+                                </>
+                              )}
 
-                            {/* Universal Option 4: Switch Mode */}
-                            <button
-                              onClick={() => { setSelectedApt(a); setActiveModal('switchMode'); setOpenMenuId(null); }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-purple-500/15 hover:text-purple-300 transition-all text-left group"
-                            >
-                              <RefreshCw className="w-4 h-4 text-purple-400 group-hover:rotate-180 transition-transform" /> Switch Consultation Mode
-                            </button>
+                              {/* MODE 3: Phone Consult Actions */}
+                              {a.mode === 'Phone Consult' && a.status !== 'Cancelled' && (
+                                <>
+                                  <button
+                                    onClick={() => { setSelectedApt(a); setActiveModal('phoneCall'); setOpenMenuId(null); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 transition-all text-left my-0.5"
+                                  >
+                                    <PhoneCall className="w-4 h-4 text-purple-400 animate-bounce" /> Start Voice Tele-Consult
+                                  </button>
+                                  <a
+                                    href={`tel:${a.phone}`}
+                                    onClick={() => setOpenMenuId(null)}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-purple-500/10 hover:text-purple-400 transition-all text-left"
+                                  >
+                                    <Phone className="w-4 h-4 text-purple-400" /> Instant Direct Dial
+                                  </a>
+                                </>
+                              )}
 
-                            {/* Universal Option 5: Reschedule */}
-                            <button
-                              onClick={() => { setSelectedApt(a); setActiveModal('reschedule'); setOpenMenuId(null); }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-amber-500/15 hover:text-amber-400 transition-all text-left group"
-                            >
-                              <CalendarClock className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" /> Reschedule Date/Time
-                            </button>
+                              <div className="h-[1px] my-1 bg-white/10" />
+                              <p className="px-3 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Universal Actions</p>
 
-                            {/* Universal Option 6: Mark Completed */}
-                            {a.status !== 'Completed' && a.status !== 'Cancelled' && (
+                              {/* Universal Option 1: View Details */}
                               <button
-                                onClick={() => handleUpdateStatus(a.id, 'Completed')}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-300 hover:bg-emerald-500/15 transition-all text-left"
+                                onClick={() => { setSelectedApt(a); setActiveModal('view'); setOpenMenuId(null); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-emerald-500/15 hover:text-emerald-400 transition-all text-left group"
                               >
-                                <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Mark as Completed
+                                <Eye className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" /> View Medical Card
                               </button>
-                            )}
 
-                            {/* Universal Option 7: Cancel Appointment */}
-                            {a.status !== 'Cancelled' && (
+                              {/* Universal Option 2: Write/View Prescription */}
                               <button
-                                onClick={() => handleUpdateStatus(a.id, 'Cancelled')}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-500/15 transition-all text-left"
+                                onClick={() => { setSelectedApt(a); setActiveModal('prescription'); setOpenMenuId(null); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-sky-500/15 hover:text-sky-400 transition-all text-left group"
                               >
-                                <XCircle className="w-4 h-4 text-red-400" /> Cancel Appointment
+                                <Pill className="w-4 h-4 text-sky-400 group-hover:scale-110 transition-transform" />
+                                {a.prescription ? 'View Digital Rx' : 'Write Prescription (Rx)'}
                               </button>
-                            )}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </td>
 
-                  </motion.tr>
-                ))}
+                              {/* Universal Option 3: Add Clinical Notes */}
+                              <button
+                                onClick={() => { setSelectedApt(a); setActiveModal('notes'); setOpenMenuId(null); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-indigo-500/15 hover:text-indigo-400 transition-all text-left group"
+                              >
+                                <ClipboardList className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" /> Clinical Notes &amp; Vitals
+                              </button>
+
+                              {/* Universal Option 4: Switch Mode */}
+                              <button
+                                onClick={() => { setSelectedApt(a); setActiveModal('switchMode'); setOpenMenuId(null); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-purple-500/15 hover:text-purple-300 transition-all text-left group"
+                              >
+                                <RefreshCw className="w-4 h-4 text-purple-400 group-hover:rotate-180 transition-transform" /> Convert Mode
+                              </button>
+
+                              {/* Universal Option 5: Reschedule */}
+                              <button
+                                onClick={() => { setSelectedApt(a); setActiveModal('reschedule'); setOpenMenuId(null); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-amber-500/15 hover:text-amber-400 transition-all text-left group"
+                              >
+                                <CalendarClock className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" /> Reschedule Date/Time
+                              </button>
+
+                              {/* Universal Option 6: Mark Completed */}
+                              {a.status !== 'Completed' && a.status !== 'Cancelled' && (
+                                <button
+                                  onClick={() => handleUpdateStatus(a.id, 'Completed')}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-300 hover:bg-emerald-500/15 transition-all text-left"
+                                >
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Mark as Completed
+                                </button>
+                              )}
+
+                              {/* Universal Option 7: Cancel Appointment */}
+                              {a.status !== 'Cancelled' && (
+                                <button
+                                  onClick={() => handleUpdateStatus(a.id, 'Cancelled')}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-500/15 transition-all text-left"
+                                >
+                                  <XCircle className="w-4 h-4 text-red-400" /> Cancel Appointment
+                                </button>
+                              )}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </td>
+
+                    </motion.tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -509,7 +586,7 @@ export default function DoctorAppointmentsPage() {
 
       {/* ── MODALS SECTION ── */}
 
-      {/* 1. VIEW PATIENT DETAILS MODAL */}
+      {/* 1. VIEW PATIENT DETAILS MODAL WITH MODE GUIDANCE BANNER */}
       <AnimatePresence>
         {activeModal === 'view' && selectedApt && (
           <ModalOverlay onClose={() => setActiveModal(null)}>
@@ -529,13 +606,26 @@ export default function DoctorAppointmentsPage() {
                     <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
                       <span>{selectedApt.age} Years</span> ·
                       <span>{selectedApt.gender || 'N/A'}</span> ·
-                      <span className="font-bold" style={{ color: modeBadgeStyle(selectedApt.mode).color }}>{selectedApt.mode}</span>
+                      <span className="font-extrabold" style={{ color: modeBadgeStyle(selectedApt.mode).color }}>{selectedApt.mode}</span>
                     </p>
                   </div>
                 </div>
                 <span className={`text-xs font-extrabold px-3.5 py-1 rounded-full ${statusBadge(selectedApt.status)}`}>
                   {selectedApt.status}
                 </span>
+              </div>
+
+              {/* 🌟 EXPLICIT DOCTOR MODE GUIDANCE BANNER */}
+              <div className="p-4 rounded-2xl border shadow-lg flex items-center gap-3" style={modeBadgeStyle(selectedApt.mode)}>
+                <Info className="w-5 h-5 flex-shrink-0" />
+                <div className="text-xs">
+                  <p className="font-extrabold text-white">Patient Preferred Mode: {selectedApt.mode}</p>
+                  <p className="text-[11px] opacity-90 mt-0.5">
+                    {selectedApt.mode === 'Clinic Visit' && `Patient will arrive in-person at OPD Chamber (${selectedApt.chamberRoom || 'OPD Room 2B'}). Token #${selectedApt.tokenNo || 14}.`}
+                    {selectedApt.mode === 'Video Consult' && 'Patient will connect online via HD Video Meeting link at appointment time.'}
+                    {selectedApt.mode === 'Phone Consult' && `Doctor will initiate voice call directly to patient's mobile ${selectedApt.phone}.`}
+                  </p>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
@@ -663,7 +753,7 @@ export default function DoctorAppointmentsPage() {
         )}
       </AnimatePresence>
 
-      {/* 6. PHONE CONSULT VOICE CALL MODAL (NEW) */}
+      {/* 6. PHONE CONSULT VOICE CALL MODAL */}
       <AnimatePresence>
         {activeModal === 'phoneCall' && selectedApt && (
           <PhoneCallModal
@@ -673,7 +763,7 @@ export default function DoctorAppointmentsPage() {
         )}
       </AnimatePresence>
 
-      {/* 7. CLINIC QUEUE TOKEN MODAL (NEW) */}
+      {/* 7. CLINIC QUEUE TOKEN MODAL */}
       <AnimatePresence>
         {activeModal === 'token' && selectedApt && (
           <QueueTokenModal
@@ -688,7 +778,7 @@ export default function DoctorAppointmentsPage() {
         )}
       </AnimatePresence>
 
-      {/* 8. SWITCH CONSULTATION MODE MODAL (NEW) */}
+      {/* 8. SWITCH CONSULTATION MODE MODAL */}
       <AnimatePresence>
         {activeModal === 'switchMode' && selectedApt && (
           <SwitchModeModal
@@ -760,7 +850,7 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
 }
 
 /* ───────────────────────────────────────────────────────────── */
-/* PHONE CONSULT VOICE CALL MODAL (NEW) */
+/* PHONE CONSULT VOICE CALL MODAL */
 /* ───────────────────────────────────────────────────────────── */
 function PhoneCallModal({ appointment, onClose }: { appointment: Appointment; onClose: () => void }) {
   const [micOn, setMicOn] = useState(true);
@@ -778,7 +868,6 @@ function PhoneCallModal({ appointment, onClose }: { appointment: Appointment; on
           <span className="text-xs text-purple-400 font-mono font-black bg-purple-500/10 px-3 py-1 rounded-lg border border-purple-500/20">03:42</span>
         </div>
 
-        {/* Voice Call Avatar Viewport */}
         <div className="py-6 space-y-4">
           <div className="relative w-28 h-28 mx-auto">
             <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white font-black text-4xl flex items-center justify-center border-4 border-purple-400 shadow-2xl shadow-purple-500/30">
@@ -795,7 +884,6 @@ function PhoneCallModal({ appointment, onClose }: { appointment: Appointment; on
             <p className="text-[10px] text-slate-400 mt-1">Audio Consult Active · Secure Virtual Line</p>
           </div>
 
-          {/* Audio Wave Visualizer Simulation */}
           <div className="flex items-center justify-center gap-1.5 h-8 py-1">
             {[40, 75, 30, 90, 60, 100, 45, 80, 55, 35].map((h, idx) => (
               <motion.div
@@ -808,7 +896,6 @@ function PhoneCallModal({ appointment, onClose }: { appointment: Appointment; on
           </div>
         </div>
 
-        {/* Toolbar Controls */}
         <div className="flex items-center justify-center gap-4 pt-2">
           <button
             onClick={() => setMicOn(!micOn)}
@@ -846,7 +933,7 @@ function PhoneCallModal({ appointment, onClose }: { appointment: Appointment; on
 }
 
 /* ───────────────────────────────────────────────────────────── */
-/* CLINIC QUEUE TOKEN & ROOM MODAL (NEW FOR CLINIC VISIT) */
+/* CLINIC QUEUE TOKEN & ROOM MODAL */
 /* ───────────────────────────────────────────────────────────── */
 function QueueTokenModal({ appointment, onClose, onUpdate }: { appointment: Appointment; onClose: () => void; onUpdate: (tokenNo: number, chamber: string, arrivalStatus: any) => void }) {
   const [tokenNo, setTokenNo] = useState(appointment.tokenNo || 14);
@@ -866,7 +953,6 @@ function QueueTokenModal({ appointment, onClose, onUpdate }: { appointment: Appo
           </div>
         </div>
 
-        {/* Token Number Highlight Card */}
         <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-teal-500/15 border border-emerald-500/30 text-center space-y-1">
           <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest">Assigned OPD Token</p>
           <p className="text-3xl font-black text-white">#{tokenNo}</p>
@@ -932,7 +1018,7 @@ function QueueTokenModal({ appointment, onClose, onUpdate }: { appointment: Appo
 }
 
 /* ───────────────────────────────────────────────────────────── */
-/* SWITCH CONSULTATION MODE MODAL (NEW FOR ALL 3 MODES) */
+/* SWITCH CONSULTATION MODE MODAL */
 /* ───────────────────────────────────────────────────────────── */
 function SwitchModeModal({ appointment, onClose, onSwitch }: { appointment: Appointment; onClose: () => void; onSwitch: (newMode: AppointmentMode) => void }) {
   const [selectedMode, setSelectedMode] = useState<AppointmentMode>(appointment.mode);

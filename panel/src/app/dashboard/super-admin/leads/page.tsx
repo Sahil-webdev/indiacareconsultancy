@@ -259,19 +259,19 @@ function BaseModal({ title, onClose, children }: { title: string; onClose: () =>
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-6"
-      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
+      style={{ background: 'rgba(3, 7, 18, 0.85)', backdropFilter: 'blur(10px)' }}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-4xl rounded-3xl border shadow-2xl overflow-hidden flex flex-col max-h-[92vh]" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
-        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-surface)' }}>
-          <h3 className="font-black text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>{title}</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-slate-800/40 hover:bg-slate-700/60 flex items-center justify-center transition-colors" style={{ color: 'var(--text-muted)' }}>
+      <div className="w-full max-w-4xl rounded-3xl border border-white/15 shadow-2xl shadow-emerald-950/20 overflow-hidden flex flex-col max-h-[92vh] bg-slate-950 text-slate-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-900/90 flex-shrink-0">
+          <h3 className="font-black text-base tracking-tight text-white">{title}</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors">
             <X className="w-4.5 h-4.5" />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto panel-scroll flex-1 space-y-6">{children}</div>
+        <div className="p-6 overflow-y-auto panel-scroll flex-1 space-y-6 bg-slate-950">{children}</div>
       </div>
     </div>
   );
@@ -357,10 +357,14 @@ export default function LeadsPage() {
   const active = leads.filter((lead) => !['Converted', 'Lost', 'Spam'].includes(lead.pipelineStage) && !lead.isArchived).length;
   const converted = leads.filter((lead) => lead.pipelineStage === 'Converted').length;
 
+  const [utrEditVal, setUtrEditVal] = useState('');
+
   async function openLeadDetail(lead: Lead) {
     try {
+      setUtrEditVal(lead.utrNumber || '');
       const response = await panelApi<LeadDetailResponse>(`/api/leads/${lead.id}`);
       setDetail(response);
+      setUtrEditVal(response.lead.utrNumber || lead.utrNumber || '');
       setDetailOpen(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to open lead');
@@ -733,55 +737,55 @@ export default function LeadsPage() {
 
         {detailOpen && detail && (
           <BaseModal title={`Lead Details · ${detail.lead.patientName}`} onClose={() => setDetailOpen(false)}>
-            <div className="space-y-6">
+            <div className="space-y-5">
 
               {/* 🌟 1. HERO PAYMENT VERIFICATION ACTION BANNER */}
               <div
-                className="p-5 rounded-2xl border transition-all space-y-3"
+                className="p-5 rounded-2xl border transition-all space-y-4 shadow-xl"
                 style={
                   detail.lead.paymentStatus === 'Paid'
-                    ? { background: 'linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(5,150,105,0.1) 100%)', borderColor: 'rgba(16,185,129,0.35)' }
-                    : { background: 'linear-gradient(135deg, rgba(245,158,11,0.18) 0%, rgba(217,119,6,0.12) 100%)', borderColor: 'rgba(245,158,11,0.4)' }
+                    ? { background: 'linear-gradient(135deg, rgba(16,185,129,0.18) 0%, rgba(5,150,105,0.12) 100%)', borderColor: 'rgba(16,185,129,0.4)' }
+                    : { background: 'linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(180,83,9,0.15) 100%)', borderColor: 'rgba(245,158,11,0.45)' }
                 }
               >
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold flex-shrink-0 ${
-                      detail.lead.paymentStatus === 'Paid' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold flex-shrink-0 shadow-inner ${
+                      detail.lead.paymentStatus === 'Paid' ? 'bg-emerald-500/25 text-emerald-400 border border-emerald-500/50' : 'bg-amber-500/25 text-amber-300 border border-amber-500/50'
                     }`}>
-                      {detail.lead.paymentStatus === 'Paid' ? <CheckCircle2 className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
+                      {detail.lead.paymentStatus === 'Paid' ? <CheckCircle2 className="w-6 h-6" /> : <Sparkles className="w-6 h-6" />}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-black text-sm text-white">
-                          {detail.lead.paymentStatus === 'Paid' ? '₹9 Consultation Payment Verified & Approved' : '₹9 Consultation Fee Payment Verification Required'}
+                      <div className="flex items-center gap-2.5">
+                        <h4 className="font-black text-base text-white tracking-tight">
+                          {detail.lead.paymentStatus === 'Paid' ? '₹9 Consultation Payment Verified & Approved' : '₹9 Consultation Fee Payment Pending Verification'}
                         </h4>
-                        <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                          detail.lead.paymentStatus === 'Paid' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/25 text-amber-300 border border-amber-500/40'
+                        <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${
+                          detail.lead.paymentStatus === 'Paid' ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/30 text-amber-200 border border-amber-500/50'
                         }`}>
                           {detail.lead.paymentStatus || 'Pending Verification'}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-300 mt-0.5">
-                        Consultation Token Fee: <strong className="text-white">₹{detail.lead.consultationFee || 9}</strong>
+                      <p className="text-xs text-slate-300 font-semibold mt-1">
+                        Token Consultation Fee: <strong className="text-white font-extrabold">₹{detail.lead.consultationFee || 9}</strong>
                       </p>
                     </div>
                   </div>
 
-                  {/* APPROVE / REJECT BUTTONS (ALWAYS VISIBLE WHEN NOT PAID) */}
+                  {/* APPROVE / REJECT BUTTONS */}
                   {detail.lead.paymentStatus !== 'Paid' && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <button
                         type="button"
-                        onClick={() => handleVerifyPayment(detail.lead.id, 'approve', detail.lead.utrNumber || undefined)}
-                        className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-all cursor-pointer"
+                        onClick={() => handleVerifyPayment(detail.lead.id, 'approve', utrEditVal || detail.lead.utrNumber || undefined)}
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/30 transition-all cursor-pointer"
                       >
-                        <CheckCircle2 className="w-4 h-4" /> Approve ₹9 Payment
+                        <CheckCircle2 className="w-4.5 h-4.5" /> Approve ₹9 Payment
                       </button>
                       <button
                         type="button"
                         onClick={() => handleVerifyPayment(detail.lead.id, 'reject')}
-                        className="px-3.5 py-2 rounded-xl bg-red-500/20 text-red-300 hover:text-white hover:bg-red-500/30 font-bold text-xs flex items-center gap-1 border border-red-500/30 transition-all cursor-pointer"
+                        className="px-4 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-white font-bold text-xs flex items-center gap-1.5 border border-red-500/30 transition-all cursor-pointer"
                       >
                         <XCircle className="w-4 h-4 text-red-400" /> Reject
                       </button>
@@ -789,31 +793,30 @@ export default function LeadsPage() {
                   )}
                 </div>
 
-                {/* UTR Reference Details & Editable Input */}
-                <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-400 font-bold uppercase text-[10px]">12-Digit UTR Ref:</span>
-                    {detail.lead.utrNumber ? (
-                      <span className="font-mono font-black text-emerald-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-white/10 text-xs">
-                        {detail.lead.utrNumber}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 italic text-[11px] bg-slate-900/60 px-2.5 py-1 rounded-lg border border-white/10">
-                        No UTR entered by patient (Super Admin can approve directly)
-                      </span>
-                    )}
+                {/* UTR Reference Edit & Copy Row */}
+                <div className="pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-3 flex-1 max-w-md">
+                    <span className="text-slate-300 font-bold uppercase text-[10px] flex-shrink-0">12-Digit UTR Ref:</span>
+                    <input
+                      type="text"
+                      value={utrEditVal}
+                      onChange={(e) => setUtrEditVal(e.target.value)}
+                      placeholder="Enter / verify 12-digit UTR..."
+                      maxLength={20}
+                      className="w-full font-mono font-bold text-emerald-400 bg-slate-950 px-3 py-1.5 rounded-xl border border-white/15 focus:outline-none focus:border-emerald-500/50 text-xs"
+                    />
                   </div>
 
-                  {detail.lead.utrNumber && (
+                  {utrEditVal && (
                     <button
                       type="button"
                       onClick={() => {
-                        navigator.clipboard.writeText(detail.lead.utrNumber || '');
+                        navigator.clipboard.writeText(utrEditVal);
                         setSuccess('UTR copied to clipboard');
                       }}
-                      className="px-2.5 py-1 rounded-lg bg-slate-900/80 text-emerald-300 hover:text-white border border-white/10 text-[10px] font-bold flex items-center gap-1"
+                      className="px-3 py-1.5 rounded-xl bg-slate-900 text-emerald-300 hover:text-white border border-white/15 text-[11px] font-bold flex items-center gap-1.5 transition-colors"
                     >
-                      <Copy className="w-3 h-3" /> Copy UTR
+                      <Copy className="w-3.5 h-3.5" /> Copy UTR
                     </button>
                   )}
                 </div>
@@ -822,60 +825,63 @@ export default function LeadsPage() {
               {/* 🌟 2. GRID INFO CARDS */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                 {/* Patient Credentials Card */}
-                <div className="panel-card p-4 space-y-2.5">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                    <User className="w-4 h-4" /> Patient Credentials
+                <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-5 space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2 border-b border-white/10 pb-2">
+                    <User className="w-4 h-4 text-emerald-400" /> Patient Credentials
                   </h4>
-                  <div className="space-y-1.5 text-slate-300">
+                  <div className="space-y-2 text-slate-300">
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400">Full Name:</span>
-                      <span className="font-bold text-white text-sm">{detail.lead.patientName}</span>
+                      <span className="text-slate-400 font-medium">Full Name:</span>
+                      <span className="font-extrabold text-white text-sm">{detail.lead.patientName}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400">Age / Gender:</span>
-                      <span className="font-bold text-white">{detail.lead.patientAge} yrs · {detail.lead.patientGender}</span>
+                      <span className="text-slate-400 font-medium">Age / Gender:</span>
+                      <span className="font-bold text-white bg-slate-800/60 px-2.5 py-0.5 rounded-md border border-white/10">{detail.lead.patientAge} yrs · {detail.lead.patientGender}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400">Mobile Phone:</span>
+                      <span className="text-slate-400 font-medium">Mobile Phone:</span>
                       <div className="flex items-center gap-2 font-mono font-bold text-white">
                         <span>{detail.lead.patientPhone}</span>
-                        <a href={`tel:${detail.lead.patientPhone}`} className="p-1 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30">
-                          <Phone className="w-3 h-3" />
+                        <a href={`tel:${detail.lead.patientPhone}`} className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors">
+                          <Phone className="w-3.5 h-3.5" />
+                        </a>
+                        <a href={`https://wa.me/91${detail.lead.patientPhone}`} target="_blank" rel="noreferrer" className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors">
+                          <MessageSquare className="w-3.5 h-3.5" />
                         </a>
                       </div>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400">Email:</span>
+                      <span className="text-slate-400 font-medium">Email Address:</span>
                       <span className="font-semibold text-slate-200">{detail.lead.patientEmail || 'Not provided'}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400">City / Area:</span>
+                      <span className="text-slate-400 font-medium">City / Area:</span>
                       <span className="font-bold text-white">{detail.lead.patientCity}, {detail.lead.patientArea || 'General'}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Medical Need Card */}
-                <div className="panel-card p-4 space-y-2.5">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                    <Stethoscope className="w-4 h-4" /> Medical Need &amp; Problem
+                <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-5 space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2 border-b border-white/10 pb-2">
+                    <Stethoscope className="w-4 h-4 text-emerald-400" /> Medical Need &amp; Problem
                   </h4>
-                  <div className="space-y-1.5 text-slate-300">
+                  <div className="space-y-2 text-slate-300">
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400">Speciality:</span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-extrabold text-[11px] border border-emerald-500/30">
+                      <span className="text-slate-400 font-medium">Speciality:</span>
+                      <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-extrabold text-[11px] border border-emerald-500/40">
                         {detail.lead.preferredSpeciality}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block mb-0.5">Primary Problem:</span>
-                      <p className="font-bold text-white bg-slate-900/80 p-2.5 rounded-xl border border-white/10 text-xs leading-relaxed">
+                      <span className="text-slate-400 font-medium block mb-1">Primary Problem:</span>
+                      <p className="font-bold text-white bg-slate-950 p-3 rounded-xl border border-white/10 text-xs leading-relaxed">
                         {detail.lead.mainProblem}
                       </p>
                     </div>
                     {detail.lead.symptoms && (
                       <div>
-                        <span className="text-slate-400 block mb-0.5">Symptoms &amp; Duration:</span>
+                        <span className="text-slate-400 font-medium block mb-0.5">Symptoms &amp; Duration:</span>
                         <p className="text-slate-300 italic">{detail.lead.symptoms} ({detail.lead.duration || 'N/A'})</p>
                       </div>
                     )}
@@ -883,40 +889,40 @@ export default function LeadsPage() {
                 </div>
 
                 {/* Patient Preferences Card */}
-                <div className="panel-card p-4 space-y-2">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                    <MapPin className="w-4 h-4" /> Consultation Preferences
+                <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-5 space-y-2.5">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2 border-b border-white/10 pb-2">
+                    <MapPin className="w-4 h-4 text-emerald-400" /> Consultation Preferences
                   </h4>
-                  <div className="space-y-1 text-slate-300">
-                    <p><span className="text-slate-400">Preferred Location:</span> <strong className="text-white">{detail.lead.preferredLocation}</strong></p>
-                    <p><span className="text-slate-400">Budget Range:</span> <strong className="text-white">{detail.lead.budgetRange}</strong></p>
-                    <p><span className="text-slate-400">Preferred Date/Time:</span> <strong className="text-white">{detail.lead.preferredDateTime || 'ASAP'}</strong></p>
-                    <p><span className="text-slate-400">Preferred Doctor Gender:</span> <strong className="text-white">{detail.lead.preferredDoctorGender}</strong></p>
-                    <p><span className="text-slate-400">Hospital / Clinic:</span> <strong className="text-white">{detail.lead.preferredHospital || 'ICC Suggestion'}</strong></p>
+                  <div className="space-y-1.5 text-slate-300">
+                    <p className="flex justify-between"><span className="text-slate-400">Preferred Location:</span> <strong className="text-white">{detail.lead.preferredLocation}</strong></p>
+                    <p className="flex justify-between"><span className="text-slate-400">Budget Range:</span> <strong className="text-white">{detail.lead.budgetRange}</strong></p>
+                    <p className="flex justify-between"><span className="text-slate-400">Preferred Date/Time:</span> <strong className="text-white">{detail.lead.preferredDateTime || 'ASAP'}</strong></p>
+                    <p className="flex justify-between"><span className="text-slate-400">Doctor Gender Preference:</span> <strong className="text-white">{detail.lead.preferredDoctorGender}</strong></p>
+                    <p className="flex justify-between"><span className="text-slate-400">Hospital / Clinic:</span> <strong className="text-white">{detail.lead.preferredHospital || 'ICC Suggestion'}</strong></p>
                   </div>
                 </div>
 
-                {/* Workflow & Priority Card */}
-                <div className="panel-card p-4 space-y-2">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                    <UserCheck className="w-4 h-4" /> Workflow &amp; Assignment
+                {/* Workflow & Assignment Card */}
+                <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-5 space-y-2.5">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2 border-b border-white/10 pb-2">
+                    <UserCheck className="w-4 h-4 text-emerald-400" /> Workflow &amp; Assignment
                   </h4>
-                  <div className="space-y-1 text-slate-300">
-                    <p><span className="text-slate-400">Assigned Consultant:</span> <strong className="text-white">{detail.lead.assignedConsultantName}</strong></p>
-                    <p><span className="text-slate-400">Pipeline Stage:</span> <strong className="text-emerald-400">{detail.lead.pipelineStage}</strong></p>
-                    <p><span className="text-slate-400">Priority Level:</span> <strong className="text-amber-400">{detail.lead.priority}</strong></p>
-                    <p><span className="text-slate-400">Scheduled Follow-up:</span> <strong className="text-white">{detail.lead.followUpAt ? new Date(detail.lead.followUpAt).toLocaleString('en-IN') : 'Not scheduled'}</strong></p>
+                  <div className="space-y-1.5 text-slate-300">
+                    <p className="flex justify-between"><span className="text-slate-400">Assigned Consultant:</span> <strong className="text-white">{detail.lead.assignedConsultantName}</strong></p>
+                    <p className="flex justify-between"><span className="text-slate-400">Pipeline Stage:</span> <strong className="text-emerald-400">{detail.lead.pipelineStage}</strong></p>
+                    <p className="flex justify-between"><span className="text-slate-400">Priority Level:</span> <strong className="text-amber-400">{detail.lead.priority}</strong></p>
+                    <p className="flex justify-between"><span className="text-slate-400">Scheduled Follow-up:</span> <strong className="text-white">{detail.lead.followUpAt ? new Date(detail.lead.followUpAt).toLocaleString('en-IN') : 'Not scheduled'}</strong></p>
                   </div>
                 </div>
               </div>
 
               {/* 🌟 3. NOTES & RECOMMENDATIONS SECTION */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <div className="panel-card p-4">
-                  <h4 className="font-bold text-white mb-2">Internal Notes ({detail.notes.length})</h4>
+                <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-5 space-y-3">
+                  <h4 className="font-black text-white text-xs uppercase tracking-wider border-b border-white/10 pb-2">Internal Notes ({detail.notes.length})</h4>
                   <div className="space-y-2 max-h-44 overflow-y-auto">
                     {detail.notes.length === 0 ? <p className="text-slate-500 italic">No notes recorded yet.</p> : detail.notes.map((note) => (
-                      <div key={note.id} className="rounded-xl p-3 bg-slate-900 border border-white/10">
+                      <div key={note.id} className="rounded-xl p-3 bg-slate-950 border border-white/10">
                         <p className="text-slate-200">{note.note}</p>
                         <p className="text-[10px] text-slate-500 mt-1">{note.authorName} · {formatTimeAgo(note.createdAt)}</p>
                       </div>
@@ -924,8 +930,8 @@ export default function LeadsPage() {
                   </div>
                 </div>
 
-                <div className="panel-card p-4">
-                  <h4 className="font-bold text-white mb-2">Doctor &amp; Hospital Recommendations</h4>
+                <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-5 space-y-3">
+                  <h4 className="font-black text-white text-xs uppercase tracking-wider border-b border-white/10 pb-2">Doctor &amp; Hospital Recommendations</h4>
                   <div className="space-y-2 text-slate-300">
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Recommended Doctors</p>
@@ -933,7 +939,7 @@ export default function LeadsPage() {
                         <p className="text-slate-500 italic">No doctors suggested yet.</p>
                       ) : (
                         detail.recommendedDoctors.map((item) => (
-                          <div key={item.id} className="text-xs font-bold text-emerald-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-white/10 mb-1">
+                          <div key={item.id} className="text-xs font-bold text-emerald-400 bg-slate-950 px-3 py-1.5 rounded-xl border border-white/10 mb-1">
                             {item.name} · {item.speciality} ({item.city})
                           </div>
                         ))

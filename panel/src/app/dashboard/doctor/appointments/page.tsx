@@ -6,12 +6,12 @@ import {
   Calendar, CheckCircle2, Clock, XCircle, Eye, Video, Building2, User, Phone,
   Search, MoreVertical, FileText, Pill, ClipboardList, CalendarClock, Printer,
   Download, Plus, Trash2, X, Mic, MicOff, VideoOff, PhoneOff, Activity, Heart,
-  Thermometer, Weight, Check, Sparkles, FileSpreadsheet, ShieldAlert,
-  ArrowRight, Tag, Share2
+  Thermometer, Weight, Check, Syringe, PhoneCall, Ticket, Share2, RefreshCw,
+  Tag, Link2, Volume2, VolumeX, Radio, ShieldCheck
 } from 'lucide-react';
 
-type AppointmentMode = 'Clinic' | 'Video';
-type AppointmentStatus = 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled' | 'Rescheduled';
+export type AppointmentMode = 'Clinic Visit' | 'Video Consult' | 'Phone Consult';
+export type AppointmentStatus = 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled' | 'Rescheduled';
 
 interface PrescriptionItem {
   id: string;
@@ -35,6 +35,9 @@ interface Appointment {
   status: AppointmentStatus;
   reason: string;
   fee: number;
+  tokenNo?: number;
+  chamberRoom?: string;
+  arrivalStatus?: 'Waiting in Reception' | 'In Doctor Chamber' | 'Completed' | 'Not Arrived';
   vitals?: { bp: string; hr: string; temp: string; weight: string };
   diagnosis?: string;
   notes?: string;
@@ -57,10 +60,13 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
     email: 'rahul.sharma@example.com',
     date: 'Jun 20, 2026',
     time: '10:00 AM',
-    mode: 'Clinic',
+    mode: 'Clinic Visit',
     status: 'Confirmed',
     reason: 'Chest pain & breathlessness on exertion',
     fee: 1500,
+    tokenNo: 14,
+    chamberRoom: 'OPD Room 2B',
+    arrivalStatus: 'Waiting in Reception',
     vitals: { bp: '130/85', hr: '78 bpm', temp: '98.4 °F', weight: '72 kg' },
     diagnosis: 'Mild Angina / Stress Induced Exertion',
     notes: 'Patient reports intermittent tightness in chest after climbing stairs. Recommended Resting ECG & Lipid Profile.'
@@ -74,7 +80,7 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
     email: 'kavya.reddy@example.com',
     date: 'Jun 20, 2026',
     time: '11:30 AM',
-    mode: 'Video',
+    mode: 'Video Consult',
     status: 'Confirmed',
     reason: 'Follow-up - ECG report & blood test review',
     fee: 1500,
@@ -100,10 +106,10 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
     email: 'mohan.verma@example.com',
     date: 'Jun 20, 2026',
     time: '02:00 PM',
-    mode: 'Clinic',
-    status: 'Pending',
-    reason: 'Hypertension management & routine blood pressure check',
-    fee: 1500,
+    mode: 'Phone Consult',
+    status: 'Confirmed',
+    reason: 'Hypertension management & routine BP review',
+    fee: 1200,
     vitals: { bp: '145/92', hr: '84 bpm', temp: '98.2 °F', weight: '81 kg' }
   },
   {
@@ -115,7 +121,7 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
     email: 'sunita.joshi@example.com',
     date: 'Jun 21, 2026',
     time: '09:30 AM',
-    mode: 'Video',
+    mode: 'Video Consult',
     status: 'Confirmed',
     reason: 'Palpitations & mild anxiety symptoms',
     fee: 1500,
@@ -130,10 +136,13 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
     email: 'deepak.singh@example.com',
     date: 'Jun 21, 2026',
     time: '12:00 PM',
-    mode: 'Clinic',
+    mode: 'Clinic Visit',
     status: 'Completed',
     reason: 'Annual cardiac preventive check-up',
     fee: 1500,
+    tokenNo: 8,
+    chamberRoom: 'OPD Room 2B',
+    arrivalStatus: 'Completed',
     vitals: { bp: '118/78', hr: '68 bpm', temp: '98.4 °F', weight: '76 kg' },
     diagnosis: 'Normal Cardiac Evaluation',
     notes: '2D ECHO and TMT normal. Advised annual preventive follow-up.'
@@ -147,10 +156,10 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
     email: 'anita.mehta@example.com',
     date: 'Jun 22, 2026',
     time: '04:00 PM',
-    mode: 'Clinic',
+    mode: 'Phone Consult',
     status: 'Cancelled',
     reason: 'Shortness of breath - Patient requested schedule adjustment',
-    fee: 1500
+    fee: 1200
   }
 ];
 
@@ -162,17 +171,24 @@ const statusBadge = (s: string) => ({
   Rescheduled: 'bg-sky-500/15 text-sky-400 border border-sky-500/30',
 }[s] || 'bg-slate-500/15 text-slate-400');
 
+const modeBadgeStyle = (m: AppointmentMode) => {
+  if (m === 'Clinic Visit') return { color: '#25B89A', background: 'rgba(37,184,154,0.12)', border: '1px solid rgba(37,184,154,0.25)' };
+  if (m === 'Video Consult') return { color: '#38BDF8', background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.25)' };
+  return { color: '#A855F7', background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.25)' };
+};
+
 export default function DoctorAppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>(INITIAL_APPOINTMENTS);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [modeFilter, setModeFilter] = useState('');
   
   // 3-dot dropdown menu state
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   // Active Modal & Target Appointment
   const [selectedApt, setSelectedApt] = useState<Appointment | null>(null);
-  const [activeModal, setActiveModal] = useState<'view' | 'prescription' | 'notes' | 'reschedule' | 'video' | null>(null);
+  const [activeModal, setActiveModal] = useState<'view' | 'prescription' | 'notes' | 'reschedule' | 'video' | 'phoneCall' | 'token' | 'switchMode' | null>(null);
 
   // Toast State
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -202,7 +218,8 @@ export default function DoctorAppointmentsPage() {
 
   const filtered = appointments.filter(a =>
     a.patient.toLowerCase().includes(search.toLowerCase()) &&
-    (statusFilter ? a.status === statusFilter : true)
+    (statusFilter ? a.status === statusFilter : true) &&
+    (modeFilter ? a.mode === modeFilter : true)
   );
 
   return (
@@ -211,7 +228,7 @@ export default function DoctorAppointmentsPage() {
       <header className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
         <div>
           <h1 className="font-extrabold text-lg" style={{ color: 'var(--text-primary)' }}>My Appointments</h1>
-          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Upcoming &amp; past patient consultations with clinical controls</p>
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Compatible with Clinic Visit, Video Consult &amp; Phone Consult</p>
         </div>
       </header>
 
@@ -220,9 +237,9 @@ export default function DoctorAppointmentsPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           {[
             { icon: Calendar,     label: 'Today Consultations', value: appointments.filter(a => a.status === 'Confirmed').length, color: 'bg-indigo-500' },
-            { icon: CheckCircle2, label: 'Confirmed Appointments', value: appointments.filter(a => a.status === 'Confirmed').length, color: 'bg-emerald-500' },
-            { icon: Clock,        label: 'Pending Approval',    value: appointments.filter(a => a.status === 'Pending').length,   color: 'bg-amber-500' },
-            { icon: XCircle,      label: 'Cancelled / Missed',  value: appointments.filter(a => a.status === 'Cancelled').length, color: 'bg-red-500' },
+            { icon: Syringe,      label: 'Clinic Visits',       value: appointments.filter(a => a.mode === 'Clinic Visit').length,  color: 'bg-emerald-500' },
+            { icon: Video,        label: 'Video Consults',      value: appointments.filter(a => a.mode === 'Video Consult').length, color: 'bg-sky-500' },
+            { icon: PhoneCall,    label: 'Phone Consults',      value: appointments.filter(a => a.mode === 'Phone Consult').length, color: 'bg-purple-500' },
           ].map((s, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}
               className="panel-card p-4 flex items-center gap-3">
@@ -246,17 +263,20 @@ export default function DoctorAppointmentsPage() {
                 className="w-full pl-9 pr-4 py-2 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
                 style={{ background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
             </div>
+
+            {/* Mode Filter */}
             <div className="flex flex-wrap gap-1.5">
-              {['', 'Confirmed', 'Pending', 'Completed', 'Cancelled'].map(s => (
-                <button key={s} onClick={() => setStatusFilter(s)}
+              {['', 'Clinic Visit', 'Video Consult', 'Phone Consult'].map(m => (
+                <button key={m} onClick={() => setModeFilter(m)}
                   className="px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all"
-                  style={statusFilter === s
-                    ? { background: 'rgba(18,122,106,0.25)', color: '#25B89A', border: '1px solid rgba(37,184,154,0.3)' }
+                  style={modeFilter === m
+                    ? { background: 'rgba(56,189,248,0.25)', color: '#38BDF8', border: '1px solid rgba(56,189,248,0.3)' }
                     : { color: 'var(--text-muted)', background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)' }}>
-                  {s || 'All'}
+                  {m || 'All Modes'}
                 </button>
               ))}
             </div>
+
             <span className="text-xs ml-auto font-medium" style={{ color: 'var(--text-muted)' }}>{filtered.length} records</span>
           </div>
 
@@ -264,7 +284,7 @@ export default function DoctorAppointmentsPage() {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  {['Patient', 'Contact', 'Date & Time', 'Mode', 'Reason for Visit', 'Fee', 'Status', 'Action'].map(h => (
+                  {['Patient', 'Contact', 'Date & Time', 'Consultation Mode', 'Reason for Visit', 'Fee', 'Status', 'Action'].map(h => (
                     <th key={h} className="px-4 py-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{h}</th>
                   ))}
                 </tr>
@@ -298,11 +318,13 @@ export default function DoctorAppointmentsPage() {
                       <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{a.time}</p>
                     </td>
 
-                    {/* Mode */}
+                    {/* Consultation Mode (3 Modes Compatibility) */}
                     <td className="px-4 py-3.5">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-lg"
-                        style={a.mode === 'Video' ? { color: '#38BDF8', background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.25)' } : { color: '#94A3B8', background: 'rgba(148,163,184,0.12)', border: '1px solid rgba(148,163,184,0.2)' }}>
-                        {a.mode === 'Video' ? <Video className="w-3 h-3" /> : <Building2 className="w-3 h-3" />} {a.mode}
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-lg" style={modeBadgeStyle(a.mode)}>
+                        {a.mode === 'Clinic Visit' && <Syringe className="w-3 h-3" />}
+                        {a.mode === 'Video Consult' && <Video className="w-3 h-3" />}
+                        {a.mode === 'Phone Consult' && <PhoneCall className="w-3 h-3" />}
+                        {a.mode}
                       </span>
                     </td>
 
@@ -323,7 +345,7 @@ export default function DoctorAppointmentsPage() {
                         onClick={() => setOpenMenuId(openMenuId === a.id ? null : a.id)}
                         className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:bg-white/10"
                         style={{ color: 'var(--text-primary)', background: openMenuId === a.id ? 'rgba(37,184,154,0.2)' : 'transparent', border: openMenuId === a.id ? '1px solid rgba(37,184,154,0.4)' : '1px solid transparent' }}
-                        title="Clinical Options"
+                        title="Doctor Actions for Mode"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
@@ -336,18 +358,83 @@ export default function DoctorAppointmentsPage() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.94, y: -6 }}
                             transition={{ duration: 0.15 }}
-                            className="absolute right-4 top-12 z-50 w-56 rounded-2xl p-2 shadow-2xl border backdrop-blur-2xl"
+                            className="absolute right-4 top-12 z-50 w-60 rounded-2xl p-2 shadow-2xl border backdrop-blur-2xl"
                             style={{
                               background: 'rgba(10, 18, 30, 0.97)',
                               borderColor: 'rgba(37, 184, 154, 0.3)',
                               boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
                             }}
                           >
-                            <p className="px-3 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500 border-b border-white/10 mb-1">
-                              Doctor Actions
-                            </p>
+                            <div className="px-3 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500 border-b border-white/10 mb-1 flex items-center justify-between">
+                              <span>Mode Actions</span>
+                              <span className="text-[9px] text-sky-400">{a.mode}</span>
+                            </div>
 
-                            {/* Option 1: View Details */}
+                            {/* ── MODE SPECIFIC ACTIONS ── */}
+
+                            {/* MODE 1: Clinic Visit Actions */}
+                            {a.mode === 'Clinic Visit' && (
+                              <>
+                                <button
+                                  onClick={() => { setSelectedApt(a); setActiveModal('token'); setOpenMenuId(null); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 transition-all text-left my-0.5 border border-emerald-500/30"
+                                >
+                                  <Ticket className="w-4 h-4 text-emerald-400" /> Clinic Queue Token &amp; Chamber
+                                </button>
+                                <button
+                                  onClick={() => { setSelectedApt(a); setActiveModal('prescription'); setOpenMenuId(null); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-emerald-500/10 hover:text-emerald-400 transition-all text-left"
+                                >
+                                  <Printer className="w-4 h-4 text-emerald-400" /> Print OPD Prescription Slip
+                                </button>
+                              </>
+                            )}
+
+                            {/* MODE 2: Video Consult Actions */}
+                            {a.mode === 'Video Consult' && a.status !== 'Cancelled' && (
+                              <>
+                                <button
+                                  onClick={() => { setSelectedApt(a); setActiveModal('video'); setOpenMenuId(null); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-sky-300 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/30 transition-all text-left my-0.5"
+                                >
+                                  <Video className="w-4 h-4 text-sky-400 animate-pulse" /> Start Video Consultation
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(`https://meet.indiacare.com/video/${a.id}`);
+                                    setOpenMenuId(null);
+                                    showToast(`Video meeting join link copied & sent to ${a.phone}`);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-sky-500/10 hover:text-sky-400 transition-all text-left"
+                                >
+                                  <Share2 className="w-4 h-4 text-sky-400" /> Re-Send Video Join Link
+                                </button>
+                              </>
+                            )}
+
+                            {/* MODE 3: Phone Consult Actions */}
+                            {a.mode === 'Phone Consult' && a.status !== 'Cancelled' && (
+                              <>
+                                <button
+                                  onClick={() => { setSelectedApt(a); setActiveModal('phoneCall'); setOpenMenuId(null); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 transition-all text-left my-0.5"
+                                >
+                                  <PhoneCall className="w-4 h-4 text-purple-400 animate-bounce" /> Start Voice Tele-Consult
+                                </button>
+                                <a
+                                  href={`tel:${a.phone}`}
+                                  onClick={() => setOpenMenuId(null)}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-purple-500/10 hover:text-purple-400 transition-all text-left"
+                                >
+                                  <Phone className="w-4 h-4 text-purple-400" /> Instant Direct Dial
+                                </a>
+                              </>
+                            )}
+
+                            <div className="h-[1px] my-1 bg-white/10" />
+                            <p className="px-3 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Universal Actions</p>
+
+                            {/* Universal Option 1: View Details */}
                             <button
                               onClick={() => { setSelectedApt(a); setActiveModal('view'); setOpenMenuId(null); }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-emerald-500/15 hover:text-emerald-400 transition-all text-left group"
@@ -355,7 +442,7 @@ export default function DoctorAppointmentsPage() {
                               <Eye className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" /> View Medical Card
                             </button>
 
-                            {/* Option 2: Write/View Prescription */}
+                            {/* Universal Option 2: Write/View Prescription */}
                             <button
                               onClick={() => { setSelectedApt(a); setActiveModal('prescription'); setOpenMenuId(null); }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-sky-500/15 hover:text-sky-400 transition-all text-left group"
@@ -364,7 +451,7 @@ export default function DoctorAppointmentsPage() {
                               {a.prescription ? 'View Digital Rx' : 'Write Prescription (Rx)'}
                             </button>
 
-                            {/* Option 3: Add Clinical Notes */}
+                            {/* Universal Option 3: Add Clinical Notes */}
                             <button
                               onClick={() => { setSelectedApt(a); setActiveModal('notes'); setOpenMenuId(null); }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-indigo-500/15 hover:text-indigo-400 transition-all text-left group"
@@ -372,19 +459,15 @@ export default function DoctorAppointmentsPage() {
                               <ClipboardList className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" /> Clinical Notes &amp; Vitals
                             </button>
 
-                            {/* Option 4: Start Video Call (if Video mode or Confirmed) */}
-                            {a.mode === 'Video' && a.status !== 'Cancelled' && (
-                              <button
-                                onClick={() => { setSelectedApt(a); setActiveModal('video'); setOpenMenuId(null); }}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-sky-300 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/30 transition-all text-left my-1 group"
-                              >
-                                <Video className="w-4 h-4 text-sky-400 animate-pulse" /> Start Telehealth Video Call
-                              </button>
-                            )}
+                            {/* Universal Option 4: Switch Mode */}
+                            <button
+                              onClick={() => { setSelectedApt(a); setActiveModal('switchMode'); setOpenMenuId(null); }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-purple-500/15 hover:text-purple-300 transition-all text-left group"
+                            >
+                              <RefreshCw className="w-4 h-4 text-purple-400 group-hover:rotate-180 transition-transform" /> Switch Consultation Mode
+                            </button>
 
-                            <div className="h-[1px] my-1 bg-white/10" />
-
-                            {/* Option 5: Reschedule */}
+                            {/* Universal Option 5: Reschedule */}
                             <button
                               onClick={() => { setSelectedApt(a); setActiveModal('reschedule'); setOpenMenuId(null); }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-amber-500/15 hover:text-amber-400 transition-all text-left group"
@@ -392,7 +475,7 @@ export default function DoctorAppointmentsPage() {
                               <CalendarClock className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" /> Reschedule Date/Time
                             </button>
 
-                            {/* Option 6: Mark Completed */}
+                            {/* Universal Option 6: Mark Completed */}
                             {a.status !== 'Completed' && a.status !== 'Cancelled' && (
                               <button
                                 onClick={() => handleUpdateStatus(a.id, 'Completed')}
@@ -402,7 +485,7 @@ export default function DoctorAppointmentsPage() {
                               </button>
                             )}
 
-                            {/* Option 7: Cancel Appointment */}
+                            {/* Universal Option 7: Cancel Appointment */}
                             {a.status !== 'Cancelled' && (
                               <button
                                 onClick={() => handleUpdateStatus(a.id, 'Cancelled')}
@@ -431,7 +514,6 @@ export default function DoctorAppointmentsPage() {
         {activeModal === 'view' && selectedApt && (
           <ModalOverlay onClose={() => setActiveModal(null)}>
             <div className="p-6 sm:p-7 space-y-6">
-              {/* Header Profile Badge */}
               <div className="flex items-start justify-between border-b pb-5 border-white/10">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-emerald-500/20 border-2 border-emerald-300">
@@ -447,7 +529,7 @@ export default function DoctorAppointmentsPage() {
                     <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
                       <span>{selectedApt.age} Years</span> ·
                       <span>{selectedApt.gender || 'N/A'}</span> ·
-                      <span className="text-emerald-400 font-semibold">{selectedApt.mode} Consultation</span>
+                      <span className="font-bold" style={{ color: modeBadgeStyle(selectedApt.mode).color }}>{selectedApt.mode}</span>
                     </p>
                   </div>
                 </div>
@@ -456,7 +538,6 @@ export default function DoctorAppointmentsPage() {
                 </span>
               </div>
 
-              {/* Consultation Stats Banner */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-white/10 text-center">
                   <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Scheduled Date</p>
@@ -467,102 +548,59 @@ export default function DoctorAppointmentsPage() {
                   <p className="font-extrabold text-sky-400 text-xs mt-1">{selectedApt.time}</p>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-white/10 text-center">
-                  <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Consultation Fee</p>
+                  <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Fee Amount</p>
                   <p className="font-extrabold text-emerald-400 text-xs mt-1">₹{selectedApt.fee}</p>
                 </div>
               </div>
 
-              {/* Patient Vitals Dashboard Cards */}
+              {/* Vitals */}
               {selectedApt.vitals && (
                 <div className="space-y-2.5">
                   <h3 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <Activity className="w-3.5 h-3.5" /> Recorded Patient Vitals
+                    <Activity className="w-3.5 h-3.5" /> Patient Vitals
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                     <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 flex flex-col items-center text-center">
-                      <div className="w-7 h-7 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center mb-1">
-                        <Activity className="w-4 h-4" />
-                      </div>
                       <span className="text-[9px] text-slate-400 uppercase font-bold">Blood Pressure</span>
                       <span className="font-black text-rose-300 text-sm mt-0.5">{selectedApt.vitals.bp}</span>
-                      <span className="text-[9px] text-rose-400/80">mmHg</span>
                     </div>
-
                     <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex flex-col items-center text-center">
-                      <div className="w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-1">
-                        <Heart className="w-4 h-4 animate-pulse" />
-                      </div>
                       <span className="text-[9px] text-slate-400 uppercase font-bold">Heart Rate</span>
                       <span className="font-black text-emerald-300 text-sm mt-0.5">{selectedApt.vitals.hr}</span>
-                      <span className="text-[9px] text-emerald-400/80">Beats/Min</span>
                     </div>
-
                     <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col items-center text-center">
-                      <div className="w-7 h-7 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-1">
-                        <Thermometer className="w-4 h-4" />
-                      </div>
-                      <span className="text-[9px] text-slate-400 uppercase font-bold">Body Temp</span>
+                      <span className="text-[9px] text-slate-400 uppercase font-bold">Temperature</span>
                       <span className="font-black text-amber-300 text-sm mt-0.5">{selectedApt.vitals.temp}</span>
-                      <span className="text-[9px] text-amber-400/80">Fahrenheit</span>
                     </div>
-
                     <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 flex flex-col items-center text-center">
-                      <div className="w-7 h-7 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-1">
-                        <Weight className="w-4 h-4" />
-                      </div>
                       <span className="text-[9px] text-slate-400 uppercase font-bold">Weight</span>
                       <span className="font-black text-indigo-300 text-sm mt-0.5">{selectedApt.vitals.weight}</span>
-                      <span className="text-[9px] text-indigo-400/80">Kilograms</span>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Chief Reason & Clinical Summary */}
+              {/* Reason */}
               <div className="space-y-2">
-                <h3 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">Reason for Visit</h3>
-                <div className="p-4 rounded-2xl bg-slate-900/90 border border-white/10 text-xs text-slate-200 leading-relaxed relative overflow-hidden">
-                  <p className="relative z-10 font-medium">{selectedApt.reason}</p>
+                <h3 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">Reason for Consultation</h3>
+                <div className="p-4 rounded-2xl bg-slate-900/90 border border-white/10 text-xs text-slate-200 leading-relaxed font-medium">
+                  {selectedApt.reason}
                 </div>
-              </div>
-
-              {selectedApt.notes && (
-                <div className="space-y-2">
-                  <h3 className="text-[11px] font-black text-indigo-400 uppercase tracking-widest">Clinical Notes</h3>
-                  <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-slate-300 leading-relaxed">
-                    {selectedApt.notes}
-                  </div>
-                </div>
-              )}
-
-              {/* Patient Contact Cards */}
-              <div className="p-4 rounded-2xl bg-slate-900/90 border border-white/10 flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] text-slate-400 uppercase font-bold">Patient Contact</p>
-                  <p className="text-xs font-bold text-white mt-0.5">{selectedApt.phone}</p>
-                  {selectedApt.email && <p className="text-[11px] text-slate-400">{selectedApt.email}</p>}
-                </div>
-                <a
-                  href={`tel:${selectedApt.phone}`}
-                  className="px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold text-xs hover:bg-emerald-500/30 transition-all flex items-center gap-1.5"
-                >
-                  <Phone className="w-3.5 h-3.5" /> Call Patient
-                </a>
               </div>
 
               {/* Actions Footer */}
               <div className="flex items-center gap-3 pt-3 border-t border-white/10">
                 <button
                   onClick={() => setActiveModal('prescription')}
-                  className="flex-1 py-3 rounded-2xl text-xs font-black bg-sky-500/20 text-sky-300 border border-sky-500/40 hover:bg-sky-500/30 transition-all flex items-center justify-center gap-2 shadow-lg shadow-sky-500/10"
+                  className="flex-1 py-3 rounded-2xl text-xs font-black bg-sky-500/20 text-sky-300 border border-sky-500/40 hover:bg-sky-500/30 transition-all flex items-center justify-center gap-2"
                 >
-                  <Pill className="w-4 h-4" /> Open Digital Rx
+                  <Pill className="w-4 h-4" /> Digital Rx
                 </button>
                 <button
                   onClick={() => setActiveModal('notes')}
-                  className="flex-1 py-3 rounded-2xl text-xs font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/10"
+                  className="flex-1 py-3 rounded-2xl text-xs font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30 transition-all flex items-center justify-center gap-2"
                 >
-                  <ClipboardList className="w-4 h-4" /> Edit Notes
+                  <ClipboardList className="w-4 h-4" /> Edit Chart Notes
                 </button>
               </div>
             </div>
@@ -570,7 +608,7 @@ export default function DoctorAppointmentsPage() {
         )}
       </AnimatePresence>
 
-      {/* 2. WRITE / VIEW PRESCRIPTION (Rx) MODAL */}
+      {/* 2. PRESCRIPTION (Rx) MODAL */}
       <AnimatePresence>
         {activeModal === 'prescription' && selectedApt && (
           <PrescriptionModal
@@ -585,7 +623,7 @@ export default function DoctorAppointmentsPage() {
         )}
       </AnimatePresence>
 
-      {/* 3. ADD CLINICAL NOTES MODAL */}
+      {/* 3. CLINICAL NOTES MODAL */}
       <AnimatePresence>
         {activeModal === 'notes' && selectedApt && (
           <ClinicalNotesModal
@@ -594,7 +632,7 @@ export default function DoctorAppointmentsPage() {
             onSave={(notesData) => {
               setAppointments(prev => prev.map(a => a.id === selectedApt.id ? { ...a, vitals: notesData.vitals, diagnosis: notesData.diagnosis, notes: notesData.notes } : a));
               setActiveModal(null);
-              showToast(`Clinical notes saved for ${selectedApt.patient}`);
+              showToast(`Clinical chart saved for ${selectedApt.patient}`);
             }}
           />
         )}
@@ -621,6 +659,46 @@ export default function DoctorAppointmentsPage() {
           <VideoCallModal
             appointment={selectedApt}
             onClose={() => setActiveModal(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 6. PHONE CONSULT VOICE CALL MODAL (NEW) */}
+      <AnimatePresence>
+        {activeModal === 'phoneCall' && selectedApt && (
+          <PhoneCallModal
+            appointment={selectedApt}
+            onClose={() => setActiveModal(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 7. CLINIC QUEUE TOKEN MODAL (NEW) */}
+      <AnimatePresence>
+        {activeModal === 'token' && selectedApt && (
+          <QueueTokenModal
+            appointment={selectedApt}
+            onClose={() => setActiveModal(null)}
+            onUpdate={(tokenNo, chamber, arrival) => {
+              setAppointments(prev => prev.map(a => a.id === selectedApt.id ? { ...a, tokenNo, chamberRoom: chamber, arrivalStatus: arrival } : a));
+              setActiveModal(null);
+              showToast(`Clinic token #${tokenNo} updated for ${selectedApt.patient}`);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 8. SWITCH CONSULTATION MODE MODAL (NEW) */}
+      <AnimatePresence>
+        {activeModal === 'switchMode' && selectedApt && (
+          <SwitchModeModal
+            appointment={selectedApt}
+            onClose={() => setActiveModal(null)}
+            onSwitch={(newMode) => {
+              setAppointments(prev => prev.map(a => a.id === selectedApt.id ? { ...a, mode: newMode } : a));
+              setActiveModal(null);
+              showToast(`Consultation mode converted to ${newMode}`);
+            }}
           />
         )}
       </AnimatePresence>
@@ -682,6 +760,235 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
 }
 
 /* ───────────────────────────────────────────────────────────── */
+/* PHONE CONSULT VOICE CALL MODAL (NEW) */
+/* ───────────────────────────────────────────────────────────── */
+function PhoneCallModal({ appointment, onClose }: { appointment: Appointment; onClose: () => void }) {
+  const [micOn, setMicOn] = useState(true);
+  const [speakerOn, setSpeakerOn] = useState(true);
+  const [recording, setRecording] = useState(true);
+
+  return (
+    <ModalOverlay onClose={onClose}>
+      <div className="p-6 sm:p-8 space-y-6 text-center">
+        <div className="flex items-center justify-between border-b pb-4 border-white/10">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-ping" />
+            <h2 className="font-extrabold text-sm text-white">Voice Tele-Consultation</h2>
+          </div>
+          <span className="text-xs text-purple-400 font-mono font-black bg-purple-500/10 px-3 py-1 rounded-lg border border-purple-500/20">03:42</span>
+        </div>
+
+        {/* Voice Call Avatar Viewport */}
+        <div className="py-6 space-y-4">
+          <div className="relative w-28 h-28 mx-auto">
+            <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white font-black text-4xl flex items-center justify-center border-4 border-purple-400 shadow-2xl shadow-purple-500/30">
+              {appointment.patient[0]}
+            </div>
+            <span className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center text-slate-950">
+              <PhoneCall className="w-3 h-3" />
+            </span>
+          </div>
+
+          <div>
+            <h3 className="font-black text-lg text-white">{appointment.patient}</h3>
+            <p className="text-xs text-purple-400 font-semibold mt-0.5">{appointment.phone}</p>
+            <p className="text-[10px] text-slate-400 mt-1">Audio Consult Active · Secure Virtual Line</p>
+          </div>
+
+          {/* Audio Wave Visualizer Simulation */}
+          <div className="flex items-center justify-center gap-1.5 h-8 py-1">
+            {[40, 75, 30, 90, 60, 100, 45, 80, 55, 35].map((h, idx) => (
+              <motion.div
+                key={idx}
+                animate={{ height: [`${h}%`, `${(h * 0.4)}%`, `${h}%`] }}
+                transition={{ repeat: Infinity, duration: 1 + (idx * 0.1) }}
+                className="w-1.5 bg-purple-400 rounded-full"
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Toolbar Controls */}
+        <div className="flex items-center justify-center gap-4 pt-2">
+          <button
+            onClick={() => setMicOn(!micOn)}
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${micOn ? 'bg-white/10 text-white border border-white/15' : 'bg-red-500/20 text-red-400 border border-red-500/40'}`}
+          >
+            {micOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+          </button>
+
+          <button
+            onClick={() => setSpeakerOn(!speakerOn)}
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${speakerOn ? 'bg-white/10 text-white border border-white/15' : 'bg-white/5 text-slate-500 border border-white/10'}`}
+          >
+            {speakerOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+          </button>
+
+          <button
+            onClick={() => setRecording(!recording)}
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${recording ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-white/5 text-slate-500'}`}
+            title="Toggle Call Recording"
+          >
+            <Radio className="w-5 h-5" />
+          </button>
+
+          <button
+            onClick={onClose}
+            className="w-14 h-14 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white flex items-center justify-center shadow-xl shadow-red-500/30 transition-all border border-red-400"
+            title="End Audio Consult"
+          >
+            <PhoneOff className="w-6 h-6" />
+          </button>
+        </div>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+/* ───────────────────────────────────────────────────────────── */
+/* CLINIC QUEUE TOKEN & ROOM MODAL (NEW FOR CLINIC VISIT) */
+/* ───────────────────────────────────────────────────────────── */
+function QueueTokenModal({ appointment, onClose, onUpdate }: { appointment: Appointment; onClose: () => void; onUpdate: (tokenNo: number, chamber: string, arrivalStatus: any) => void }) {
+  const [tokenNo, setTokenNo] = useState(appointment.tokenNo || 14);
+  const [chamber, setChamber] = useState(appointment.chamberRoom || 'OPD Room 2B');
+  const [arrival, setArrival] = useState<any>(appointment.arrivalStatus || 'Waiting in Reception');
+
+  return (
+    <ModalOverlay onClose={onClose}>
+      <div className="p-6 sm:p-7 space-y-5">
+        <div className="flex items-center gap-3 border-b pb-4 border-white/10">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+            <Ticket className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="font-black text-base text-white">Clinic Queue &amp; Token Manager</h2>
+            <p className="text-xs text-slate-400">Patient: <strong className="text-white">{appointment.patient}</strong> (In-Person Clinic Visit)</p>
+          </div>
+        </div>
+
+        {/* Token Number Highlight Card */}
+        <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-teal-500/15 border border-emerald-500/30 text-center space-y-1">
+          <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest">Assigned OPD Token</p>
+          <p className="text-3xl font-black text-white">#{tokenNo}</p>
+          <p className="text-xs text-slate-300 font-semibold">{chamber}</p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1 block">Token Number</label>
+            <input
+              type="number"
+              value={tokenNo}
+              onChange={e => setTokenNo(Number(e.target.value))}
+              className="w-full px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-900/90 border border-white/10"
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1 block">Chamber Room</label>
+            <input
+              type="text"
+              value={chamber}
+              onChange={e => setChamber(e.target.value)}
+              placeholder="e.g. OPD Room 2B"
+              className="w-full px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-900/90 border border-white/10"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1.5 block">Reception Arrival Status</label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              'Waiting in Reception',
+              'In Doctor Chamber',
+              'Completed',
+              'Not Arrived'
+            ].map((st) => (
+              <button
+                key={st}
+                type="button"
+                onClick={() => setArrival(st)}
+                className={`p-2.5 rounded-xl text-xs font-bold border transition-all text-left flex items-center justify-between ${arrival === st ? 'bg-emerald-500/25 border-emerald-400 text-emerald-300' : 'bg-slate-900/90 border-white/10 text-slate-400 hover:text-white'}`}
+              >
+                {st}
+                {arrival === st && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 pt-3 border-t border-white/10">
+          <button
+            onClick={() => onUpdate(tokenNo, chamber, arrival)}
+            className="flex-1 py-3.5 rounded-2xl font-black text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-all shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2"
+          >
+            <Check className="w-4 h-4" /> Save Token Info &amp; Notify Reception
+          </button>
+        </div>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+/* ───────────────────────────────────────────────────────────── */
+/* SWITCH CONSULTATION MODE MODAL (NEW FOR ALL 3 MODES) */
+/* ───────────────────────────────────────────────────────────── */
+function SwitchModeModal({ appointment, onClose, onSwitch }: { appointment: Appointment; onClose: () => void; onSwitch: (newMode: AppointmentMode) => void }) {
+  const [selectedMode, setSelectedMode] = useState<AppointmentMode>(appointment.mode);
+
+  const modesList: { mode: AppointmentMode; desc: string; icon: any; color: string }[] = [
+    { mode: 'Clinic Visit', desc: 'In-person clinic consultation at doctor chamber', icon: Syringe, color: 'text-emerald-400' },
+    { mode: 'Video Consult', desc: 'Online HD 1080p video call consultation', icon: Video, color: 'text-sky-400' },
+    { mode: 'Phone Consult', desc: 'Audio tele-consultation over virtual voice line', icon: PhoneCall, color: 'text-purple-400' },
+  ];
+
+  return (
+    <ModalOverlay onClose={onClose}>
+      <div className="p-6 sm:p-7 space-y-5">
+        <div className="flex items-center gap-3 border-b pb-4 border-white/10">
+          <div className="w-12 h-12 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30">
+            <RefreshCw className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="font-black text-base text-white">Convert Consultation Mode</h2>
+            <p className="text-xs text-slate-400">Patient: <strong className="text-white">{appointment.patient}</strong></p>
+          </div>
+        </div>
+
+        <div className="space-y-2.5">
+          {modesList.map((m) => (
+            <div
+              key={m.mode}
+              onClick={() => setSelectedMode(m.mode)}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center gap-3.5 ${selectedMode === m.mode ? 'bg-purple-500/20 border-purple-400 shadow-lg shadow-purple-500/10' : 'bg-slate-900/90 border-white/10 hover:border-white/20'}`}
+            >
+              <div className={`w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center ${m.color}`}>
+                <m.icon className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-extrabold text-sm text-white">{m.mode}</h3>
+                <p className="text-[11px] text-slate-400">{m.desc}</p>
+              </div>
+              {selectedMode === m.mode && <Check className="w-5 h-5 text-purple-400" />}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-3 pt-3 border-t border-white/10">
+          <button
+            onClick={() => onSwitch(selectedMode)}
+            className="flex-1 py-3.5 rounded-2xl font-black text-xs bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white transition-all shadow-xl shadow-purple-500/20 flex items-center justify-center gap-2"
+          >
+            <Check className="w-4 h-4" /> Convert Mode
+          </button>
+        </div>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+/* ───────────────────────────────────────────────────────────── */
 /* PRESCRIPTION (Rx) MODAL COMPONENT */
 /* ───────────────────────────────────────────────────────────── */
 function PrescriptionModal({ appointment, onClose, onSave }: { appointment: Appointment; onClose: () => void; onSave: (rx: any) => void }) {
@@ -711,7 +1018,6 @@ function PrescriptionModal({ appointment, onClose, onSave }: { appointment: Appo
   return (
     <ModalOverlay onClose={onClose}>
       <div className="p-6 sm:p-7 space-y-6">
-        {/* Official Medical Rx Header Stamp */}
         <div className="p-4 rounded-2xl bg-gradient-to-r from-sky-500/15 via-emerald-500/10 to-transparent border border-sky-500/30 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center border border-sky-500/30 font-black text-xl">
@@ -719,7 +1025,7 @@ function PrescriptionModal({ appointment, onClose, onSave }: { appointment: Appo
             </div>
             <div>
               <h2 className="font-black text-base text-white flex items-center gap-2">
-                Digital Medical Prescription
+                Digital Prescription (Rx)
                 <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase">Verified</span>
               </h2>
               <p className="text-xs text-slate-400">Patient: <strong className="text-white">{appointment.patient}</strong> ({appointment.age}y · {appointment.gender || 'N/A'})</p>
@@ -731,7 +1037,6 @@ function PrescriptionModal({ appointment, onClose, onSave }: { appointment: Appo
           </div>
         </div>
 
-        {/* Diagnosis Input */}
         <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1.5 flex items-center gap-1">
             <Tag className="w-3 h-3" /> Clinical Diagnosis *
@@ -741,11 +1046,10 @@ function PrescriptionModal({ appointment, onClose, onSave }: { appointment: Appo
             value={diagnosis}
             onChange={e => setDiagnosis(e.target.value)}
             placeholder="e.g. Essential Hypertension / Sinus Tachycardia"
-            className="w-full px-4 py-3 rounded-2xl text-xs text-white bg-slate-900/90 border border-white/10 focus:outline-none focus:border-emerald-500/60 font-semibold"
+            className="w-full px-4 py-3 rounded-2xl text-xs text-white bg-slate-900/90 border border-white/10 font-semibold"
           />
         </div>
 
-        {/* Medication Builder */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <label className="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1">
@@ -771,7 +1075,7 @@ function PrescriptionModal({ appointment, onClose, onSave }: { appointment: Appo
                     value={m.name}
                     onChange={e => updateMedicine(m.id, 'name', e.target.value)}
                     placeholder="Medicine Name (e.g. Tab Metoprolol 25mg)"
-                    className="flex-1 px-3.5 py-2 rounded-xl text-xs text-white bg-slate-950 border border-white/10 focus:outline-none focus:border-sky-500/50 font-bold"
+                    className="flex-1 px-3.5 py-2 rounded-xl text-xs text-white bg-slate-950 border border-white/10 font-bold"
                   />
                   {medicines.length > 1 && (
                     <button onClick={() => removeMedicine(m.id)} className="text-red-400 hover:text-red-300 p-1.5 rounded-lg hover:bg-red-500/10">
@@ -826,7 +1130,6 @@ function PrescriptionModal({ appointment, onClose, onSave }: { appointment: Appo
           </div>
         </div>
 
-        {/* Recommended Tests & Follow-Up */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1 block">Recommended Lab Tests</label>
@@ -850,7 +1153,6 @@ function PrescriptionModal({ appointment, onClose, onSave }: { appointment: Appo
           </div>
         </div>
 
-        {/* Special Instructions */}
         <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1 block">Special Patient Advice</label>
           <textarea
@@ -862,7 +1164,6 @@ function PrescriptionModal({ appointment, onClose, onSave }: { appointment: Appo
           />
         </div>
 
-        {/* Actions Footer */}
         <div className="flex items-center gap-3 pt-4 border-t border-white/10">
           <button
             onClick={() => {
@@ -906,7 +1207,6 @@ function ClinicalNotesModal({ appointment, onClose, onSave }: { appointment: App
           </div>
         </div>
 
-        {/* Vitals Recording Grid */}
         <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-2 block">Vitals Assessment</label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -951,7 +1251,6 @@ function ClinicalNotesModal({ appointment, onClose, onSave }: { appointment: App
           />
         </div>
 
-        {/* Quick Clinical Tag Chips */}
         <div>
           <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block">Quick Tags</label>
           <div className="flex flex-wrap gap-1.5">
@@ -1014,13 +1313,11 @@ function RescheduleModal({ appointment, onClose, onSave }: { appointment: Appoin
           </div>
         </div>
 
-        {/* Current Callout */}
         <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-xs">
           <span className="text-amber-300 font-bold">Current Slot:</span>
           <span className="text-white font-extrabold">{appointment.date} at {appointment.time}</span>
         </div>
 
-        {/* New Date */}
         <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1.5 block">Select New Date</label>
           <input
@@ -1032,7 +1329,6 @@ function RescheduleModal({ appointment, onClose, onSave }: { appointment: Appoin
           />
         </div>
 
-        {/* Time Slots Grid */}
         <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-2 block">Select Available Time Slot</label>
           <div className="grid grid-cols-3 gap-2">
@@ -1082,7 +1378,6 @@ function VideoCallModal({ appointment, onClose }: { appointment: Appointment; on
           <span className="text-xs text-sky-400 font-mono font-black bg-sky-500/10 px-2.5 py-1 rounded-lg border border-sky-500/20">04:12</span>
         </div>
 
-        {/* Video Viewport */}
         <div className="relative w-full h-72 rounded-3xl bg-slate-950 overflow-hidden border border-white/15 flex items-center justify-center shadow-2xl">
           {videoOn ? (
             <div className="text-center space-y-3">
@@ -1101,14 +1396,12 @@ function VideoCallModal({ appointment, onClose }: { appointment: Appointment; on
             </div>
           )}
 
-          {/* PiP Doctor Camera Window */}
           <div className="absolute bottom-4 right-4 w-28 h-20 rounded-2xl bg-slate-900/90 border border-sky-500/40 p-2 flex flex-col items-center justify-center shadow-xl">
             <span className="text-[9px] font-black text-sky-400 uppercase tracking-widest">Doctor Cam</span>
             <span className="text-[10px] text-slate-400">Active</span>
           </div>
         </div>
 
-        {/* Call Toolbar */}
         <div className="flex items-center justify-center gap-4 py-3">
           <button
             onClick={() => setMicOn(!micOn)}

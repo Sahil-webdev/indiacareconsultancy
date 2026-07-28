@@ -36,6 +36,7 @@ function formatDoctor(row) {
     awards: parseJson(row.awards, []),
     hospitalName: row.hospital_name || '',
     opdTimings: row.opd_timings || '',
+    experienceTimeline: parseJson(row.experience_timeline, []),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     pendingChangeRequests: Number(row.pending_change_requests || 0),

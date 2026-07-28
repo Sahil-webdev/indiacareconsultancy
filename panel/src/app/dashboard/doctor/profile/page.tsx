@@ -7,8 +7,16 @@ import {
   Save, Loader2, CheckCircle2, User, Award, Stethoscope, MapPin,
   Clock, Calendar, Globe, Building2, Phone, Mail, Eye, Edit3, Plus,
   X, BadgeCheck, Star, ShieldCheck, Heart, Sparkles, Check, FileText,
-  AlertCircle, Syringe, Video, PhoneCall, Tag, Upload, Camera, Trash2
+  AlertCircle, Syringe, Video, PhoneCall, Tag, Upload, Camera, Trash2,
+  TrendingUp, Briefcase
 } from 'lucide-react';
+
+type ExperienceTimelineItem = {
+  years: string;
+  role: string;
+  place: string;
+  desc: string;
+};
 
 type DoctorProfile = {
   id: string;
@@ -33,6 +41,7 @@ type DoctorProfile = {
   languages: string[];
   services: string[];
   awards: string[];
+  experienceTimeline: ExperienceTimelineItem[];
   isApproved: boolean;
   isSubscribed: boolean;
   rating?: number;
@@ -58,13 +67,42 @@ export default function DoctorProfilePage() {
   const [newLanguageInput, setNewLanguageInput] = useState('');
   const [newAwardInput, setNewAwardInput] = useState('');
 
+  // Form states for Experience Timeline entry builder
+  const [timelineYears, setTimelineYears] = useState('');
+  const [timelineRole, setTimelineRole] = useState('');
+  const [timelinePlace, setTimelinePlace] = useState('');
+  const [timelineDesc, setTimelineDesc] = useState('');
+
   useEffect(() => {
     async function loadProfile() {
       try {
         const response = await panelApi<{ doctor: DoctorProfile }>('/api/doctors/me/profile');
         const doc = response.doctor;
-        // Clear server-side default placeholder paths that cause 404 on panel
+        // Filter out default placeholder images that 404 on panel
         const photoUrl = doc.photo && !doc.photo.includes('default-doctor') ? doc.photo : '';
+
+        // Default experience timeline if none exists
+        const defaultTimeline: ExperienceTimelineItem[] = [
+          {
+            years: '2020 – Present',
+            role: 'Senior Consultant',
+            place: doc.clinicAddress || doc.hospitalName || 'Main Hospital/OPD Clinic',
+            desc: 'Leading complex cases, mentoring junior doctors, and running OPD consultations.'
+          },
+          {
+            years: '2014 – 2020',
+            role: 'Associate Specialist',
+            place: 'Apollo Hospitals, Delhi',
+            desc: 'Handled ICU admissions, performed advanced diagnostic procedures.'
+          },
+          {
+            years: '2008 – 2014',
+            role: 'Resident Doctor',
+            place: 'AIIMS, New Delhi',
+            desc: 'Post-graduate training and research fellowship in specialised care.'
+          }
+        ];
+
         setProfile({
           ...doc,
           photo: photoUrl,
@@ -72,6 +110,9 @@ export default function DoctorProfilePage() {
           languages: doc.languages || ['English', 'Hindi'],
           services: doc.services || ['General Consultation', 'ECG Interpretation', 'Hypertension Management'],
           awards: doc.awards || ['Best Doctor Award 2024', 'Gold Medalist in Cardiology'],
+          experienceTimeline: Array.isArray(doc.experienceTimeline) && doc.experienceTimeline.length > 0
+            ? doc.experienceTimeline
+            : defaultTimeline,
           rating: doc.rating || 4.9,
         });
       } catch (err) {
@@ -111,6 +152,7 @@ export default function DoctorProfilePage() {
           languages: profile.languages,
           services: profile.services,
           awards: profile.awards,
+          experienceTimeline: profile.experienceTimeline,
           opdTimings: profile.opdTimings,
         }),
       });
@@ -187,6 +229,38 @@ export default function DoctorProfilePage() {
   const removeAward = (award: string) => {
     if (!profile) return;
     setProfile({ ...profile, awards: profile.awards.filter(a => a !== award) });
+  };
+
+  // Experience Timeline Helpers
+  const addTimelineItem = () => {
+    if (!profile) return;
+    if (!timelineYears.trim() || !timelineRole.trim()) {
+      setErrorMsg('Please enter both duration years and role for timeline item.');
+      return;
+    }
+    const newItem: ExperienceTimelineItem = {
+      years: timelineYears.trim(),
+      role: timelineRole.trim(),
+      place: timelinePlace.trim() || profile.hospitalName || profile.clinicAddress || 'Clinic / Hospital',
+      desc: timelineDesc.trim() || 'Clinical duties, patient care, and specialized medical procedures.'
+    };
+    setProfile({
+      ...profile,
+      experienceTimeline: [...(profile.experienceTimeline || []), newItem]
+    });
+    setTimelineYears('');
+    setTimelineRole('');
+    setTimelinePlace('');
+    setTimelineDesc('');
+    setErrorMsg('');
+  };
+
+  const removeTimelineItem = (index: number) => {
+    if (!profile) return;
+    setProfile({
+      ...profile,
+      experienceTimeline: profile.experienceTimeline.filter((_, i) => i !== index)
+    });
   };
 
   const toggleDay = (day: string) => {
@@ -557,7 +631,103 @@ export default function DoctorProfilePage() {
                 />
               </div>
 
-              {/* Section 4: Dynamic Tags (Services, Languages, Awards) */}
+              {/* SECTION 4: EXPERIENCE TIMELINE MANAGER */}
+              <div className="panel-card p-6 space-y-4">
+                <h2 className="text-xs font-black uppercase tracking-widest text-teal-400 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4" /> Experience Timeline &amp; Career History
+                </h2>
+
+                {/* Add Timeline Entry Form */}
+                <div className="p-4 rounded-2xl bg-slate-900/90 border border-white/10 space-y-3">
+                  <h3 className="text-[11px] font-bold text-slate-300 uppercase flex items-center gap-1.5">
+                    <Plus className="w-3.5 h-3.5 text-emerald-400" /> Add Career Position / Experience Milestone
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Years / Duration *</label>
+                      <input
+                        type="text"
+                        value={timelineYears}
+                        onChange={e => setTimelineYears(e.target.value)}
+                        placeholder="e.g. 2020 – Present"
+                        className="w-full px-3 py-2 rounded-xl text-xs text-white bg-slate-950 border border-white/10 font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Role / Designation *</label>
+                      <input
+                        type="text"
+                        value={timelineRole}
+                        onChange={e => setTimelineRole(e.target.value)}
+                        placeholder="e.g. Senior Consultant"
+                        className="w-full px-3 py-2 rounded-xl text-xs text-white bg-slate-950 border border-white/10 font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Hospital / Institution</label>
+                      <input
+                        type="text"
+                        value={timelinePlace}
+                        onChange={e => setTimelinePlace(e.target.value)}
+                        placeholder="e.g. Apollo Hospitals, Delhi"
+                        className="w-full px-3 py-2 rounded-xl text-xs text-white bg-slate-950 border border-white/10 font-bold"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Description &amp; Key Focus</label>
+                    <input
+                      type="text"
+                      value={timelineDesc}
+                      onChange={e => setTimelineDesc(e.target.value)}
+                      placeholder="e.g. Leading complex cases, mentoring junior doctors, and running OPD consultations."
+                      className="w-full px-3 py-2 rounded-xl text-xs text-white bg-slate-950 border border-white/10"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addTimelineItem}
+                    className="px-4 py-2 rounded-xl text-xs font-black text-slate-950 bg-teal-400 hover:bg-teal-300 transition-all flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" /> Add to Timeline
+                  </button>
+                </div>
+
+                {/* Timeline Items List */}
+                <div className="space-y-3 pt-2">
+                  {profile.experienceTimeline?.map((item, idx) => (
+                    <div key={idx} className="p-4 rounded-2xl bg-slate-900 border border-white/10 flex items-start justify-between gap-4">
+                      <div className="flex gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-400 flex items-center justify-center flex-shrink-0 font-bold text-xs">
+                          {idx + 1}
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
+                              {item.years}
+                            </span>
+                            <h4 className="font-extrabold text-xs text-white">{item.role}</h4>
+                          </div>
+                          <p className="text-[11px] font-semibold text-slate-300 flex items-center gap-1">
+                            <Building2 className="w-3 h-3 text-slate-400" /> {item.place}
+                          </p>
+                          <p className="text-[11px] text-slate-400 leading-relaxed">{item.desc}</p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeTimelineItem(idx)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section 5: Dynamic Tags (Services, Languages, Awards) */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                 {/* Services Tag Manager */}
                 <div className="panel-card p-5 space-y-3">
@@ -746,6 +916,30 @@ export default function DoctorProfilePage() {
                     <p className="text-xs text-slate-300 leading-relaxed font-medium p-4 rounded-2xl bg-slate-900/80 border border-white/10">
                       {profile.bio}
                     </p>
+                  </div>
+                )}
+
+                {/* EXPERIENCE TIMELINE IN PREVIEW */}
+                {profile.experienceTimeline && profile.experienceTimeline.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4" /> Experience Timeline
+                    </h3>
+                    <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gradient-to-b before:from-emerald-400 before:to-transparent">
+                      {profile.experienceTimeline.map((item, i) => (
+                        <div key={i} className="relative">
+                          <div className="absolute -left-6 top-1 w-4 h-4 rounded-full bg-slate-950 border-2 border-emerald-400 flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-extrabold text-emerald-400 uppercase tracking-widest">{item.years}</span>
+                            <h4 className="font-extrabold text-sm text-white mt-0.5">{item.role}</h4>
+                            <p className="text-xs font-medium text-slate-300 mt-0.5">{item.place}</p>
+                            <p className="text-xs text-slate-400 mt-1 leading-relaxed">{item.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 

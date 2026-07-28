@@ -76,6 +76,7 @@ async function ensureOperationalSchema() {
   await ensureAppointmentWorkflowColumns();
   await ensureEmployeesColumns();
   await ensurePatientsTable();
+  await ensureProfileChangeStorageColumns();
 }
 
 async function ensureLeadWorkflowColumns() {
@@ -203,6 +204,21 @@ async function ensurePatientsTable() {
       CONSTRAINT fk_patients_consultant FOREIGN KEY (assigned_consultant_id) REFERENCES users(id) ON DELETE SET NULL
     )
   `);
+}
+
+async function ensureProfileChangeStorageColumns() {
+  const pool = getPool();
+
+  const alterStatements = [
+    'ALTER TABLE profile_change_requests MODIFY COLUMN old_value LONGTEXT NULL',
+    'ALTER TABLE profile_change_requests MODIFY COLUMN new_value LONGTEXT NOT NULL',
+    'ALTER TABLE doctors MODIFY COLUMN photo LONGTEXT NULL',
+    'ALTER TABLE hospitals MODIFY COLUMN image LONGTEXT NULL',
+  ];
+
+  for (const statement of alterStatements) {
+    await pool.execute(statement);
+  }
 }
 
 module.exports = {

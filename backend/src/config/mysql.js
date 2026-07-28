@@ -16,9 +16,14 @@ const connectMySQL = async () => {
       timezone:           '+05:30',
     });
 
-    // Test the connection
+    // Test the connection and ensure experience_timeline column exists
     const conn = await pool.getConnection();
     const [rows] = await conn.execute('SELECT 1');
+    try {
+      await conn.execute('ALTER TABLE doctors ADD COLUMN experience_timeline JSON NULL');
+    } catch (e) {
+      // Column may already exist
+    }
     conn.release();
 
     console.log(`✅ MySQL connected: ${process.env.MYSQL_HOST || '127.0.0.1'}:${process.env.MYSQL_PORT || 3306}/${process.env.MYSQL_DATABASE || 'icc'}`);

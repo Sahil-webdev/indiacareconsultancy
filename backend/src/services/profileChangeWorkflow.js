@@ -18,6 +18,10 @@ const DOCTOR_SCALAR_FIELDS = {
   bio: { column: 'bio' },
   opdTimings: { column: 'opd_timings' },
   hospitalName: { column: 'hospital_name' },
+  experienceTimeline: {
+    column: 'experience_timeline',
+    parse: (value) => typeof value === 'string' ? value : JSON.stringify(value || []),
+  },
 };
 
 const DOCTOR_LIST_FIELDS = {

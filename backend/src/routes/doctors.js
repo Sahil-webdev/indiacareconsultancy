@@ -266,6 +266,13 @@ router.patch('/:id', protect, async (req, res, next) => {
       ]
     );
 
+    if (updates.experienceTimeline !== undefined) {
+      const timelineJson = typeof updates.experienceTimeline === 'string'
+        ? updates.experienceTimeline
+        : JSON.stringify(updates.experienceTimeline || []);
+      await pool.execute('UPDATE doctors SET experience_timeline = ? WHERE id = ?', [timelineJson, req.params.id]);
+    }
+
     if (approvalDecision === 'approved' || approvalDecision === 'pending' || approvalDecision === 'rejected') {
       await pool.execute(
         'UPDATE users SET is_active = ? WHERE id = ?',

@@ -192,11 +192,13 @@ export default function DoctorProfileClient({ doctor }: Props) {
     { name: 'Priya Nair',      city: 'Gurugram',  date: 'May 3, 2026',    rating: 5,   comment: 'I had been struggling with chronic chest pain for months. One visit to this doctor changed everything. Diagnoses were spot on.' },
   ];
 
-  const experienceTimeline = [
-    { years: '2020 – Present', role: 'Senior Consultant', place: doctor.clinicAddress, desc: 'Leading complex cases, mentoring junior doctors, and running OPD consultations.' },
-    { years: '2014 – 2020',    role: 'Associate Specialist', place: 'Apollo Hospitals, Delhi', desc: 'Handled ICU admissions, performed advanced diagnostic procedures.' },
-    { years: '2008 – 2014',    role: 'Resident Doctor',    place: 'AIIMS, New Delhi',          desc: 'Post-graduate training and research fellowship in specialised care.' },
-  ];
+  const experienceTimeline = (Array.isArray((doctor as any).experienceTimeline) && (doctor as any).experienceTimeline.length > 0)
+    ? (doctor as any).experienceTimeline
+    : [
+        { years: '2020 – Present', role: 'Senior Consultant', place: doctor.clinicAddress || doctor.hospitalName || 'Main Hospital / Clinic', desc: 'Leading complex cases, mentoring junior doctors, and running OPD consultations.' },
+        { years: '2014 – 2020',    role: 'Associate Specialist', place: 'Apollo Hospitals, Delhi', desc: 'Handled ICU admissions, performed advanced diagnostic procedures.' },
+        { years: '2008 – 2014',    role: 'Resident Doctor',    place: 'AIIMS, New Delhi',          desc: 'Post-graduate training and research fellowship in specialised care.' },
+      ];
 
   const faqs = [
     { q: `What conditions does ${doctor.name} treat?`, a: `${doctor.name} treats a wide range of conditions including ${doctor.services?.slice(0, 3).join(', ')} and more. Refer to the Treatments section for the full list.` },
@@ -558,7 +560,7 @@ export default function DoctorProfileClient({ doctor }: Props) {
               <div className="relative">
                 <div className="absolute left-4 top-2 bottom-2 w-px bg-gradient-to-b from-primary-green via-accent-green to-transparent" />
                 <div className="flex flex-col gap-8">
-                  {experienceTimeline.map((item, i) => (
+                  {experienceTimeline.map((item: any, i: number) => (
                     <motion.div
                       key={i}
                       initial={{ opacity: 0, x: -20 }}

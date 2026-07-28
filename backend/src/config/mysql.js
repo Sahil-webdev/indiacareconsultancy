@@ -29,6 +29,15 @@ const connectMySQL = async () => {
     } catch (e) {
       // Column may already exist
     }
+    try {
+      await conn.execute("ALTER TABLE leads ADD COLUMN utr_number VARCHAR(120) NULL");
+    } catch (e) {}
+    try {
+      await conn.execute("ALTER TABLE leads ADD COLUMN payment_status ENUM('Pending Verification','Paid','Failed') DEFAULT 'Pending Verification'");
+    } catch (e) {}
+    try {
+      await conn.execute("ALTER TABLE leads ADD COLUMN consultation_fee DECIMAL(10,2) DEFAULT 9.00");
+    } catch (e) {}
     conn.release();
 
     console.log(`✅ MySQL connected: ${process.env.MYSQL_HOST || '127.0.0.1'}:${process.env.MYSQL_PORT || 3306}/${process.env.MYSQL_DATABASE || 'icc'}`);

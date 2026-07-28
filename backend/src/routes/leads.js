@@ -51,6 +51,9 @@ function formatLead(row) {
     priority: row.priority,
     isSpam: Boolean(Number(row.is_spam || 0)),
     isArchived: Boolean(Number(row.is_archived || 0)),
+    utrNumber: row.utr_number || null,
+    paymentStatus: row.payment_status || 'Pending Verification',
+    consultationFee: Number(row.consultation_fee || 9.00),
     followUpAt: row.follow_up_at,
     lastContactedAt: row.last_contacted_at,
     noteCount: Number(row.note_count || 0),
@@ -69,10 +72,13 @@ router.post('/', async (req, res, next) => {
     const concern = payload.healthConcern || {};
     const preferences = payload.preferences || {};
     const consent = payload.consent || {};
+    const payment = payload.payment || {};
+    const utr = (payment.transactionRef || payload.utrNumber || '').trim();
+
     const [result] = await pool.execute(
       `INSERT INTO leads
-        (patient_name, patient_age, patient_gender, patient_phone, patient_whatsapp, patient_email, patient_city, patient_area, main_problem, symptoms, duration, preferred_speciality, preferred_location, budget_range, preferred_doctor_gender, preferred_hospital, preferred_datetime, patient_disclaimer, data_consent, status, pipeline_stage, priority)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'New', 'New', 'Medium')`,
+        (patient_name, patient_age, patient_gender, patient_phone, patient_whatsapp, patient_email, patient_city, patient_area, main_problem, symptoms, duration, preferred_speciality, preferred_location, budget_range, preferred_doctor_gender, preferred_hospital, preferred_datetime, patient_disclaimer, data_consent, utr_number, payment_status, consultation_fee, status, pipeline_stage, priority)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending Verification', 9.00, 'New', 'New', 'Medium')`,
       [
         patient.name,
         patient.age,
@@ -93,6 +99,7 @@ router.post('/', async (req, res, next) => {
         preferences.preferredDateTime,
         consent.patientDisclaimerConsent ? 1 : 0,
         consent.dataConsent ? 1 : 0,
+        utr || null,
       ]
     );
 
@@ -101,16 +108,59 @@ router.post('/', async (req, res, next) => {
       await pool.execute('INSERT INTO lead_reports (lead_id, report_url) VALUES (?, ?)', [leadId, report]);
     }
     const lead = await fetchOne('SELECT * FROM leads WHERE id = ?', [leadId]);
+
+    // Also record in payments table for centralized accounting
+    try {
+      await pool.execute(
+        `INSERT INTO payments
+          (user_id, payment_type, entity_type, entity_id, amount, status, payment_method, transaction_ref, created_at)
+         VALUES (1, 'consultation', 'patient', ?, 9.00, 'Pending', 'UPI', ?, NOW())`,
+        [leadId, utr || null]
+      );
+    } catch (pe) {
+      // Non-blocking payment log
+    }
+
     await createSuperAdminNotification({
-      title: 'New consultation lead received',
-      message: `${patient.name || 'A patient'} submitted a new ${concern.preferredSpeciality || 'medical'} consultation request.`,
+      title: '₹9 Consultation Request Received',
+      message: `${patient.name || 'A patient'} paid ₹9 via UPI (UTR: ${utr || 'N/A'}) for ${concern.preferredSpeciality || 'medical'} consultation.`,
       category: 'lead',
       entityType: 'lead',
       entityId: leadId,
       actionUrl: '/dashboard/super-admin/leads',
-      metadata: { patientName: patient.name, speciality: concern.preferredSpeciality },
+      metadata: { patientName: patient.name, speciality: concern.preferredSpeciality, utrNumber: utr },
     });
-    res.status(201).json({ success: true, message: 'Consultation request submitted!', lead });
+    res.status(201).json({ success: true, message: 'Consultation request & UTR submitted!', lead: formatLead(lead) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Super Admin 1-Click Verify ₹9 Consultation Payment
+router.patch('/:id/verify-payment', protect, async (req, res, next) => {
+  try {
+    if (!['super_admin', 'consultant'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Forbidden: Super Admin access required' });
+    }
+    const { action } = req.body; // 'approve' | 'reject'
+    const newStatus = action === 'approve' ? 'Paid' : 'Failed';
+    const pool = getPool();
+
+    await pool.execute(
+      'UPDATE leads SET payment_status = ? WHERE id = ?',
+      [newStatus, req.params.id]
+    );
+
+    // Also update payments table if exists
+    try {
+      await pool.execute(
+        "UPDATE payments SET status = ? WHERE entity_type = 'patient' AND entity_id = ?",
+        [action === 'approve' ? 'Paid' : 'Failed', req.params.id]
+      );
+    } catch (pe) {}
+
+    const updated = await fetchOne('SELECT * FROM leads WHERE id = ?', [req.params.id]);
+    res.json({ success: true, message: `Payment ${action === 'approve' ? 'verified' : 'rejected'} successfully!`, lead: formatLead(updated) });
   } catch (error) {
     next(error);
   }

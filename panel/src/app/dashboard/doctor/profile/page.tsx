@@ -30,6 +30,7 @@ type DoctorProfile = {
   experience: number;
   gender?: string;
   clinicAddress: string;
+  googleMapsLink?: string;
   location: string;
   area: string;
   consultationFee: number;
@@ -142,6 +143,7 @@ export default function DoctorProfilePage() {
           experience: profile.experience,
           gender: profile.gender,
           clinicAddress: profile.clinicAddress,
+          googleMapsLink: profile.googleMapsLink,
           location: profile.location,
           area: profile.area,
           consultationFee: profile.consultationFee,
@@ -557,6 +559,20 @@ export default function DoctorProfilePage() {
                     placeholder="Full street address of OPD Clinic / Hospital"
                     className="w-full px-3.5 py-2.5 rounded-xl text-xs text-white bg-slate-900 border border-white/10 resize-none"
                   />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Google Maps Location Link</label>
+                  <input
+                    type="url"
+                    value={profile.googleMapsLink || ''}
+                    onChange={e => setProfile({ ...profile, googleMapsLink: e.target.value })}
+                    placeholder="Paste Google Maps share link here"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs text-white bg-slate-900 border border-white/10"
+                  />
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Yahan Google Maps ka exact share link paste karein. Website par "Open in Google Maps" isi location ko kholega.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">

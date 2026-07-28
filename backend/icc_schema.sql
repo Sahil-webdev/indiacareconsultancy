@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS doctors (
   experience_years     SMALLINT      NOT NULL DEFAULT 0,
   hospital_name        VARCHAR(150),
   clinic_address       TEXT          NOT NULL,
+  google_maps_link     TEXT,
   city                 VARCHAR(80)   NOT NULL,
   area                 VARCHAR(80),
   consultation_fee     DECIMAL(10,2) NOT NULL,

@@ -16,6 +16,7 @@ function formatDoctor(row) {
     speciality: row.speciality,
     experience: Number(row.experience_years || 0),
     clinicAddress: row.clinic_address,
+    googleMapsLink: row.google_maps_link || '',
     consultationFee: Number(row.consultation_fee || 0),
     location: row.city,
     city: row.city,

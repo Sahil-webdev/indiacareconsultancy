@@ -35,6 +35,36 @@ import BookingModal, { BookingDoctor } from '@/components/BookingModal';
 
 interface Props { doctor: SiteDoctor; }
 
+function getGoogleMapsEmbedSrc(link: string | undefined, address: string) {
+  const fallbackQuery = address || link || 'India Care Consultancy';
+
+  if (!link?.trim()) {
+    return `https://maps.google.com/maps?q=${encodeURIComponent(fallbackQuery)}&z=15&output=embed`;
+  }
+
+  try {
+    const parsed = new URL(link);
+
+    if (parsed.pathname.includes('/maps/embed')) {
+      return link;
+    }
+
+    const directQuery = parsed.searchParams.get('q') || parsed.searchParams.get('query');
+    if (directQuery) {
+      return `https://maps.google.com/maps?q=${encodeURIComponent(directQuery)}&z=15&output=embed`;
+    }
+
+    const coordsMatch = link.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    if (coordsMatch) {
+      return `https://maps.google.com/maps?q=${coordsMatch[1]},${coordsMatch[2]}&z=15&output=embed`;
+    }
+  } catch {
+    // Fall back to the raw string below when the value is not a valid URL.
+  }
+
+  return `https://maps.google.com/maps?q=${encodeURIComponent(link || fallbackQuery)}&z=15&output=embed`;
+}
+
 /* ─── Animated ring progress ─── */
 function RingProgress({ pct, size = 80, stroke = 7, color = '#127A6A', label }: {
   pct: number; size?: number; stroke?: number; color?: string; label?: string;
@@ -107,6 +137,9 @@ export default function DoctorProfileClient({ doctor }: Props) {
   const stickyRef = useRef<HTMLDivElement>(null);
   const [hospital, setHospital] = useState<SiteHospital | null>(null);
   const [relatedDoctors, setRelatedDoctors] = useState<SiteDoctor[]>([]);
+  const [resolvedMapEmbedSrc, setResolvedMapEmbedSrc] = useState(() =>
+    getGoogleMapsEmbedSrc(doctor.googleMapsLink, doctor.clinicAddress)
+  );
 
   // ── Booking Modal State ──
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -141,6 +174,43 @@ export default function DoctorProfileClient({ doctor }: Props) {
 
     loadRelatedData();
   }, [doctor.hospitalName, doctor.id, doctor.speciality]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function resolveMapEmbed() {
+      if (!doctor.googleMapsLink?.trim()) {
+        setResolvedMapEmbedSrc(getGoogleMapsEmbedSrc('', doctor.clinicAddress));
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/maps/embed?url=${encodeURIComponent(doctor.googleMapsLink)}&address=${encodeURIComponent(doctor.clinicAddress)}`,
+          { cache: 'no-store' }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to resolve embed map');
+        }
+
+        const data = await response.json();
+        if (active && data.embedUrl) {
+          setResolvedMapEmbedSrc(data.embedUrl);
+        }
+      } catch {
+        if (active) {
+          setResolvedMapEmbedSrc(getGoogleMapsEmbedSrc(doctor.googleMapsLink, doctor.clinicAddress));
+        }
+      }
+    }
+
+    resolveMapEmbed();
+
+    return () => {
+      active = false;
+    };
+  }, [doctor.googleMapsLink, doctor.clinicAddress]);
 
   const bookingDoc: BookingDoctor = {
     id: doctor.id,
@@ -207,6 +277,11 @@ export default function DoctorProfileClient({ doctor }: Props) {
     { q: 'Can appointments be booked online?', a: 'Yes. You can request an appointment through India Care Consultancy. Our consultant team will confirm availability and coordinate the booking directly with the clinic or hospital.' },
     { q: `Does ${doctor.name} offer online consultations?`, a: `${doctor.name} offers ${doctor.consultationType === 'Both' ? 'both online video and in-clinic physical' : doctor.consultationType.toLowerCase()} consultations.` },
   ];
+
+  const doctorMapsHref = doctor.googleMapsLink?.trim()
+    ? doctor.googleMapsLink
+    : `https://maps.google.com/?q=${encodeURIComponent(doctor.clinicAddress)}`;
+  const doctorMapsEmbedSrc = resolvedMapEmbedSrc;
 
   return (
     <div className="min-h-screen bg-light-grey">
@@ -780,25 +855,34 @@ export default function DoctorProfileClient({ doctor }: Props) {
                 <MapPin className="w-5 h-5 text-primary-green" /> Location & Directions
               </h2>
               <p className="text-sm text-text-grey mb-4">{doctor.clinicAddress}</p>
-              <div className="w-full aspect-[16/8] rounded-2xl bg-gradient-to-br from-soft-green to-light-mint border border-primary-green/10 flex flex-col items-center justify-center gap-3 relative overflow-hidden">
-                <div className="absolute inset-0 opacity-20" style={{
-                  backgroundImage: 'radial-gradient(circle at 1px 1px, #127A6A 1px, transparent 0)',
-                  backgroundSize: '28px 28px'
-                }} />
-                <div className="relative w-12 h-12 rounded-full bg-primary-green/10 border-2 border-primary-green flex items-center justify-center">
-                  <MapPin className="w-6 h-6 text-primary-green animate-bounce" />
+              <div className="w-full rounded-2xl border border-primary-green/10 bg-white overflow-hidden shadow-sm">
+                <div className="relative aspect-[16/8] bg-soft-green">
+                  <iframe
+                    title={`${doctor.name} location map`}
+                    src={doctorMapsEmbedSrc}
+                    className="absolute inset-0 h-full w-full border-0"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/85 via-white/35 to-transparent" />
+                  <div className="absolute left-4 top-4 rounded-2xl border border-primary-green/10 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm">
+                    <p className="text-sm font-extrabold text-dark-navy">{hospital?.name || doctor.location}</p>
+                    <p className="mt-1 max-w-xs text-xs text-text-grey">{doctor.clinicAddress}</p>
+                  </div>
                 </div>
-                <div className="relative text-center">
-                  <p className="text-sm font-bold text-dark-navy">{hospital?.name || doctor.location}</p>
-                  <p className="text-xs text-text-grey mt-1">{doctor.clinicAddress}</p>
+                <div className="flex flex-col gap-3 border-t border-primary-green/10 bg-gradient-to-r from-soft-green/80 to-light-mint/80 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-dark-navy">Clinic navigation preview</p>
+                    <p className="text-xs text-text-grey">Tap below to open exact route in Google Maps.</p>
+                  </div>
+                  <a
+                    href={doctorMapsHref}
+                    target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-white gradient-primary px-4 py-2.5 rounded-xl shadow-md"
+                  >
+                    Open in Google Maps <ArrowRight className="w-3.5 h-3.5" />
+                  </a>
                 </div>
-                <a
-                  href={`https://maps.google.com/?q=${encodeURIComponent(doctor.clinicAddress)}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="relative flex items-center gap-1.5 text-xs font-bold text-white gradient-primary px-4 py-2 rounded-xl shadow-md"
-                >
-                  Open in Google Maps <ArrowRight className="w-3.5 h-3.5" />
-                </a>
               </div>
               <div className="grid grid-cols-3 gap-3 mt-4">
                 {['Parking Available', 'Wheelchair Access', 'Emergency Support'].map(f => (

@@ -237,7 +237,7 @@ router.patch('/:id', protect, async (req, res, next) => {
 
     await pool.execute(
       `UPDATE doctors
-       SET name = ?, phone = ?, qualification = ?, speciality = ?, experience_years = ?, clinic_address = ?, city = ?, area = ?, consultation_fee = ?, consultation_type = ?, bio = ?, opd_timings = ?, rating = ?, is_approved = ?, is_subscribed = ?, subscription_paid_at = ?, subscription_ends_at = ?, hospital_name = ?
+       SET name = ?, phone = ?, qualification = ?, speciality = ?, experience_years = ?, clinic_address = ?, google_maps_link = ?, city = ?, area = ?, consultation_fee = ?, consultation_type = ?, bio = ?, opd_timings = ?, rating = ?, is_approved = ?, is_subscribed = ?, subscription_paid_at = ?, subscription_ends_at = ?, hospital_name = ?
        WHERE id = ?`,
       [
         updates.name ?? doctor.name,
@@ -246,6 +246,7 @@ router.patch('/:id', protect, async (req, res, next) => {
         updates.speciality ?? doctor.speciality,
         updates.experience ?? doctor.experience,
         updates.clinicAddress ?? doctor.clinicAddress,
+        updates.googleMapsLink ?? doctor.googleMapsLink ?? null,
         updates.location ?? doctor.location,
         updates.area ?? doctor.area,
         updates.consultationFee ?? doctor.consultationFee,

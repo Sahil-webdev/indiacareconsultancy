@@ -10,6 +10,7 @@ export interface SiteDoctor {
   speciality: string;
   experience: number;
   clinicAddress: string;
+  googleMapsLink?: string;
   consultationFee: number;
   location: string;
   area: string;
@@ -24,6 +25,12 @@ export interface SiteDoctor {
   languages: string[];
   services: string[];
   awards: string[];
+  experienceTimeline?: {
+    years: string;
+    role: string;
+    place: string;
+    desc: string;
+  }[];
   hospitalId?: string;
   hospitalName?: string;
 }

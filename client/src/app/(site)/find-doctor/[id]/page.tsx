@@ -23,6 +23,7 @@ async function getDoctor(id: string): Promise<SiteDoctor | null> {
       speciality: doctor.speciality,
       experience: doctor.experience,
       clinicAddress: doctor.clinicAddress,
+      googleMapsLink: doctor.googleMapsLink || '',
       consultationFee: doctor.consultationFee,
       location: doctor.location,
       area: doctor.area,
@@ -36,6 +37,7 @@ async function getDoctor(id: string): Promise<SiteDoctor | null> {
       languages: doctor.languages || [],
       services: doctor.services || [],
       awards: doctor.awards || [],
+      experienceTimeline: Array.isArray(doctor.experienceTimeline) ? doctor.experienceTimeline : [],
       hospitalName: doctor.hospitalName || '',
       userId: doctor.userId || undefined,
     };

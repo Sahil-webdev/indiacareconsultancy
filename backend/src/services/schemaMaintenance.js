@@ -76,6 +76,7 @@ async function ensureOperationalSchema() {
   await ensureAppointmentWorkflowColumns();
   await ensureEmployeesColumns();
   await ensurePatientsTable();
+  await ensureDoctorProfileColumns();
   await ensureProfileChangeStorageColumns();
 }
 
@@ -204,6 +205,24 @@ async function ensurePatientsTable() {
       CONSTRAINT fk_patients_consultant FOREIGN KEY (assigned_consultant_id) REFERENCES users(id) ON DELETE SET NULL
     )
   `);
+}
+
+async function ensureDoctorProfileColumns() {
+  const pool = getPool();
+
+  const requiredColumns = [
+    'ADD COLUMN google_maps_link TEXT NULL AFTER clinic_address',
+  ];
+
+  for (const statement of requiredColumns) {
+    try {
+      await pool.execute(`ALTER TABLE doctors ${statement}`);
+    } catch (error) {
+      if (!String(error.message).includes('Duplicate column name')) {
+        throw error;
+      }
+    }
+  }
 }
 
 async function ensureProfileChangeStorageColumns() {

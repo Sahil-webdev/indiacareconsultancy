@@ -11,6 +11,7 @@ const DOCTOR_SCALAR_FIELDS = {
   speciality: { column: 'speciality' },
   experience: { column: 'experience_years', parse: (value) => Number(value || 0) },
   clinicAddress: { column: 'clinic_address' },
+  googleMapsLink: { column: 'google_maps_link' },
   location: { column: 'city' },
   area: { column: 'area' },
   consultationFee: { column: 'consultation_fee', parse: (value) => Number(value || 0) },

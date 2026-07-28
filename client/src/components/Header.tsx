@@ -12,7 +12,12 @@ export default function Header() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { isLoggedIn, patient, openAuthModal } = usePatientAuth();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -21,6 +26,8 @@ export default function Header() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const showPatientState = mounted && isLoggedIn && patient;
 
   const navLinks = [
     { name: 'Home', path: '/' },
@@ -80,7 +87,7 @@ export default function Header() {
 
             {/* ── RIGHT: CTA Buttons ── */}
             <div className="hidden lg:flex items-center gap-3 shrink-0">
-              {isLoggedIn && patient ? (
+              {showPatientState ? (
                 /* Logged-in: user avatar button */
                 <button
                   onClick={() => router.push('/my-health')}
@@ -121,7 +128,7 @@ export default function Header() {
 
             {/* Mobile Right Controls */}
             <div className="ml-auto flex items-center gap-2 lg:hidden">
-              {isLoggedIn && patient && (
+              {showPatientState && (
                 <button
                   onClick={() => router.push('/my-health')}
                   className="w-8 h-8 rounded-xl gradient-primary flex items-center justify-center text-white font-black text-sm shadow-sm overflow-hidden"
@@ -173,7 +180,7 @@ export default function Header() {
                   </button>
                 </div>
 
-                {isLoggedIn && patient && (
+                {showPatientState && (
                   <div className="mt-4 mb-2 flex items-center gap-3 bg-soft-green rounded-2xl p-3 border border-primary-green/10">
                     <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center text-white font-black text-sm overflow-hidden">
                       {patient.profileImage ? (
@@ -208,7 +215,7 @@ export default function Header() {
               </div>
 
               <div className="flex flex-col gap-3 pt-6 border-t border-slate-100">
-                {isLoggedIn ? (
+                {showPatientState ? (
                   <button
                     onClick={() => { setIsOpen(false); router.push('/my-health'); }}
                     className="flex items-center justify-center gap-2 text-base font-bold text-primary-green border border-primary-green/20 bg-soft-green py-3 rounded-xl hover:bg-light-mint transition-colors"

@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { panelApi } from '@/lib/api';
 import {
   Save, Loader2, CheckCircle2, User, Award, Stethoscope, MapPin,
   Clock, Calendar, Globe, Building2, Phone, Mail, Eye, Edit3, Plus,
   X, BadgeCheck, Star, ShieldCheck, Heart, Sparkles, Check, FileText,
-  AlertCircle, Syringe, Video, PhoneCall, Tag
+  AlertCircle, Syringe, Video, PhoneCall, Tag, Upload, Camera, Trash2
 } from 'lucide-react';
 
 type DoctorProfile = {
@@ -47,6 +47,9 @@ export default function DoctorProfilePage() {
   const [savedMsg, setSavedMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Native File Input Ref for Device Upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Active View Tab: 'edit' or 'preview'
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
 
@@ -70,7 +73,7 @@ export default function DoctorProfilePage() {
         });
       } catch (err) {
         setErrorMsg(err instanceof Error ? err.message : 'Failed to load doctor profile');
-      } fontFinally: {
+      } finally {
         setLoading(false);
       }
     }
@@ -120,6 +123,28 @@ export default function DoctorProfilePage() {
       setSaving(false);
     }
   }
+
+  // Handle Photo File Upload from Device
+  const handlePhotoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg('Image size should be less than 5MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      if (base64) {
+        setProfile({ ...profile, photo: base64 });
+        setSavedMsg('Profile photo selected from device. Click "Save Profile" to apply.');
+        setTimeout(() => setSavedMsg(''), 4000);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Tag helper functions
   const addService = () => {
@@ -349,19 +374,53 @@ export default function DoctorProfilePage() {
                   </div>
                 </div>
 
+                {/* DEVICE FILE UPLOAD COMPONENT FOR PROFILE PHOTO */}
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Profile Photo URL</label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="text"
-                      value={profile.photo}
-                      onChange={e => setProfile({ ...profile, photo: e.target.value })}
-                      placeholder="https://images.unsplash.com/photo-..."
-                      className="flex-1 px-3.5 py-2.5 rounded-xl text-xs text-white bg-slate-900 border border-white/10"
-                    />
-                    {profile.photo && (
-                      <img src={profile.photo} alt="Doctor avatar preview" className="w-10 h-10 rounded-xl object-cover border border-emerald-500/40" />
-                    )}
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Doctor Profile Photo</label>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handlePhotoFileChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-2xl bg-slate-900/90 border border-white/10">
+                    <div className="relative">
+                      {profile.photo ? (
+                        <img src={profile.photo} alt={profile.name} className="w-20 h-20 rounded-2xl object-cover border-2 border-emerald-400 shadow-md" />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-black text-2xl border-2 border-emerald-400/40">
+                          {profile.name[0]}
+                        </div>
+                      )}
+                      <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center border-2 border-slate-900">
+                        <Camera className="w-3 h-3" />
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="px-4 py-2 rounded-xl text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-all flex items-center gap-2 shadow-md shadow-emerald-500/10"
+                        >
+                          <Upload className="w-4 h-4" />
+                          {profile.photo ? 'Change Photo from Device' : 'Upload Photo from Device'}
+                        </button>
+
+                        {profile.photo && (
+                          <button
+                            type="button"
+                            onClick={() => setProfile({ ...profile, photo: '' })}
+                            className="px-3 py-2 rounded-xl text-xs font-bold text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all flex items-center gap-1.5"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Remove Photo
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400">Select a photo from your computer or mobile device (PNG, JPG, WEBP formats up to 5MB).</p>
+                    </div>
                   </div>
                 </div>
               </div>

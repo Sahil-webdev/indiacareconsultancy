@@ -10,6 +10,7 @@ type DoctorProfile = {
   name: string;
   availability: string[];
   opdTimings?: string;
+  availabilitySchedule?: Record<string, string[]>;
 };
 
 const DAY_MAPPING: Record<string, string> = {
@@ -31,6 +32,15 @@ const TIME_SLOTS = [
 ];
 
 const DEFAULT_SLOTS = ['10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '05:00 PM', '05:30 PM'];
+
+function deriveOpdTimings(schedule: Record<string, { active: boolean; slots: string[] }>) {
+  const ordered = TIME_SLOTS.filter((slot) =>
+    Object.values(schedule).some((day) => day.slots.includes(slot))
+  );
+
+  if (!ordered.length) return '';
+  return `${ordered[0]} - ${ordered[ordered.length - 1]}`;
+}
 
 export default function DoctorAvailabilityPage() {
   const [profile, setProfile] = useState<DoctorProfile | null>(null);
@@ -62,9 +72,10 @@ export default function DoctorAvailabilityPage() {
           DAYS.forEach((fullDay) => {
             const shortDay = DAY_MAPPING[fullDay];
             const isActive = doc.availability.includes(shortDay) || doc.availability.includes(fullDay);
+            const configuredSlots = doc.availabilitySchedule?.[shortDay] || [];
             newSched[fullDay] = {
               active: isActive,
-              slots: isActive ? (schedule[fullDay]?.slots || DEFAULT_SLOTS) : [],
+              slots: isActive ? (configuredSlots.length > 0 ? configuredSlots : (schedule[fullDay]?.slots || DEFAULT_SLOTS)) : [],
             };
           });
           setSchedule(newSched);
@@ -115,12 +126,18 @@ export default function DoctorAvailabilityPage() {
       .filter(day => schedule[day].active && schedule[day].slots.length > 0)
       .map(day => DAY_MAPPING[day]);
 
+    const availabilitySchedule = Object.fromEntries(
+      DAYS.map((day) => [DAY_MAPPING[day], schedule[day].active ? schedule[day].slots : []])
+    );
+    const opdTimings = deriveOpdTimings(schedule);
+
     try {
       const response = await panelApi<{ doctor?: DoctorProfile }>(`/api/doctors/${profile.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
           availability: activeShortDays,
-          opdTimings: '10:00 AM - 01:00 PM & 05:00 PM - 08:00 PM',
+          availabilitySchedule,
+          opdTimings,
         }),
       });
 

@@ -443,9 +443,8 @@ export default function Homepage() {
 
   // Fetch promoted profiles
   useEffect(() => {
-    fetch('/api/promote')
-      .then(res => res.json())
-      .then(data => setPromotedItems(data))
+    siteApi<{ success: boolean; items: any[] }>('/api/promote')
+      .then(data => setPromotedItems(data.items || []))
       .catch(err => console.error('Failed to load promoted items:', err));
   }, []);
 

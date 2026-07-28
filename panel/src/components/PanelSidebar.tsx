@@ -15,7 +15,7 @@ import {
   ThumbsUp, Bell, Mail, LayoutTemplate, Megaphone,
   Globe, BookOpen, HelpCircle, Star, Image,
   ScrollText, Plug, SlidersHorizontal, Lock, Database,
-  FileWarning, Clipboard, Briefcase, AlertTriangle, Sparkles,
+  FileWarning, Clipboard, Briefcase, AlertTriangle, Sparkles, CheckCircle2,
 } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 import { clearSession, getSessionUser } from '@/lib/session';
@@ -89,6 +89,7 @@ const SUPER_ADMIN_NAV: NavSection[] = [
     items: [
       { label: 'Doctor Approvals',    icon: BadgeCheck,   href: '/dashboard/super-admin/verification/doctor-approvals' },
       { label: 'Hospital Approvals',  icon: Building2,    href: '/dashboard/super-admin/verification/hospital-approvals' },
+      { label: 'UPI Subscriptions',   icon: CheckCircle2, href: '/dashboard/super-admin/verification/subscription-approvals' },
       { label: 'Profile Changes',     icon: UserCog,      href: '/dashboard/super-admin/verification/profile-changes' },
       { label: 'Expiring Documents',  icon: FileWarning,  href: '/dashboard/super-admin/verification/expiring-docs' },
       { label: 'Flagged Profiles',    icon: Flag,         href: '/dashboard/super-admin/verification/flagged' },

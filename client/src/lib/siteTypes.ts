@@ -17,7 +17,9 @@ export interface SiteDoctor {
   rating: number;
   gender: 'Male' | 'Female' | 'Other' | string;
   availability: string[];
+  availabilitySchedule?: Record<string, string[]>;
   consultationType: 'Online' | 'Offline' | 'Both' | string;
+  opdTimings?: string;
   isApproved: boolean;
   isSubscribed?: boolean;
   subscriptionPlan: 'Basic' | 'Premium' | 'Elite';

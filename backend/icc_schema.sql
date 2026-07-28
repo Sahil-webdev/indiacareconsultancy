@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS doctors (
   hospital_name        VARCHAR(150),
   clinic_address       TEXT          NOT NULL,
   google_maps_link     TEXT,
+  availability_schedule JSON         NULL,
   city                 VARCHAR(80)   NOT NULL,
   area                 VARCHAR(80),
   consultation_fee     DECIMAL(10,2) NOT NULL,

@@ -16,11 +16,16 @@ const connectMySQL = async () => {
       timezone:           '+05:30',
     });
 
-    // Test the connection and ensure experience_timeline column exists
+    // Test the connection and ensure schema updates
     const conn = await pool.getConnection();
     const [rows] = await conn.execute('SELECT 1');
     try {
       await conn.execute('ALTER TABLE doctors ADD COLUMN experience_timeline JSON NULL');
+    } catch (e) {
+      // Column may already exist
+    }
+    try {
+      await conn.execute('ALTER TABLE payments ADD COLUMN screenshot_url LONGTEXT NULL');
     } catch (e) {
       // Column may already exist
     }

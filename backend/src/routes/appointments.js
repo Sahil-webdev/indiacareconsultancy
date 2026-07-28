@@ -3,6 +3,7 @@ const { protect } = require('../middleware/auth');
 const { getPool } = require('../config/mysql');
 const { fetchOne, fetchRows } = require('../services/mysqlUtils');
 const { createNotification, createSuperAdminNotification } = require('../services/notifications');
+const { buildAvailabilitySchedule, getDateDayKey } = require('../services/doctorAvailability');
 
 const router = express.Router();
 
@@ -214,6 +215,56 @@ router.post('/', async (req, res, next) => {
     const pool = getPool();
     const payload = req.body;
     const workflowStatus = 'Requested';
+
+    if (payload.doctorId) {
+      const doctor = await fetchOne(
+        `SELECT
+           d.availability_schedule,
+           d.opd_timings,
+           COALESCE((SELECT JSON_ARRAYAGG(day) FROM doctor_availability WHERE doctor_id = d.id), JSON_ARRAY()) AS availability
+         FROM doctors d
+         WHERE d.id = ?
+         LIMIT 1`,
+        [payload.doctorId]
+      );
+
+      if (!doctor) {
+        return res.status(404).json({ success: false, message: 'Doctor not found' });
+      }
+
+      const appointmentDay = getDateDayKey(payload.appointmentDate);
+      if (!appointmentDay) {
+        return res.status(400).json({ success: false, message: 'Invalid appointment date' });
+      }
+
+      const schedule = buildAvailabilitySchedule({
+        availability: doctor.availability,
+        availabilitySchedule: doctor.availability_schedule,
+        opdTimings: doctor.opd_timings,
+      });
+
+      const configuredSlots = schedule[appointmentDay] || [];
+      if (!configuredSlots.length) {
+        return res.status(400).json({ success: false, message: 'Doctor is not available on the selected day' });
+      }
+
+      if (!configuredSlots.includes(payload.timeSlot)) {
+        return res.status(400).json({ success: false, message: 'Selected time slot is not available for this doctor' });
+      }
+
+      const bookedSlot = await fetchOne(
+        `SELECT id
+         FROM appointments
+         WHERE doctor_id = ? AND appointment_date = ? AND time_slot = ? AND status <> 'Cancelled'
+         LIMIT 1`,
+        [payload.doctorId, payload.appointmentDate, payload.timeSlot]
+      );
+
+      if (bookedSlot) {
+        return res.status(409).json({ success: false, message: 'This time slot is already booked. Please choose another slot.' });
+      }
+    }
+
     const [result] = await pool.execute(
       `INSERT INTO appointments
         (patient_name, patient_phone, patient_email, doctor_id, hospital_id, appointment_date, time_slot, concern, status, workflow_status)

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles, Star, Eye, TrendingUp, CreditCard, Smartphone,
@@ -8,6 +8,7 @@ import {
   CalendarDays, X, BadgeCheck, ArrowRight, Building2,
 } from 'lucide-react';
 import { useHospitalIdentity } from '@/lib/panelIdentity';
+import { panelApi } from '@/lib/api';
 
 const SPOTLIGHT_FEE = 1499; // ₹/30 days — managed by super admin
 
@@ -16,27 +17,9 @@ type Step = 'info' | 'payment' | 'success';
 type PromoState = {
   daysLeft: number;
   tagline: string;
-  paidAt: number;
+  startsAt: number;
   endsAt: number;
 };
-
-function getStoredHospitalPromo(): PromoState | null {
-  if (typeof window === 'undefined') return null;
-  const promo = localStorage.getItem('icc_hospital_promoted');
-  if (!promo) return null;
-
-  const data = JSON.parse(promo) as { paidAt: number; tagline: string };
-  const paidAt = Number(data.paidAt || Date.now());
-  const endsAt = paidAt + 30 * 24 * 60 * 60 * 1000;
-  const daysLeft = Math.max(0, 30 - Math.floor((Date.now() - paidAt) / (1000 * 60 * 60 * 24)));
-
-  if (daysLeft <= 0) {
-    localStorage.removeItem('icc_hospital_promoted');
-    return null;
-  }
-
-  return { daysLeft, tagline: data.tagline, paidAt, endsAt };
-}
 
 function HeroPreview({
   tagline,
@@ -92,7 +75,9 @@ export default function HospitalPromotePage() {
   const [card, setCard] = useState({ number: '', expiry: '', cvv: '', name: '' });
   const [bank, setBank] = useState('SBI');
   const [processing, setProcessing] = useState(false);
-  const [activePromo, setActivePromo] = useState<PromoState | null>(() => getStoredHospitalPromo());
+  const [activePromo, setActivePromo] = useState<PromoState | null>(null);
+  const [spotlightFee, setSpotlightFee] = useState(SPOTLIGHT_FEE);
+  const [loadingPromo, setLoadingPromo] = useState(true);
   const hospital = {
     name: displayName,
     type: profile?.hospitalType || 'Hospital',
@@ -102,18 +87,89 @@ export default function HospitalPromotePage() {
     beds: profile?.totalBeds || 0,
   };
 
+  useEffect(() => {
+    let active = true;
+
+    async function loadCurrentSpotlight() {
+      try {
+        const response = await panelApi<{
+          fee?: { amount: number; durationDays: number };
+          spotlight: null | { tagline: string; startsAt: string; endsAt: string; isActive: boolean };
+        }>('/api/promote/current');
+
+        if (!active) return;
+
+        if (response.fee?.amount) {
+          setSpotlightFee(Number(response.fee.amount));
+        }
+
+        if (response.spotlight?.isActive) {
+          const startsAt = new Date(response.spotlight.startsAt).getTime();
+          const endsAt = new Date(response.spotlight.endsAt).getTime();
+          setActivePromo({
+            tagline: response.spotlight.tagline,
+            startsAt,
+            endsAt,
+            daysLeft: Math.max(0, Math.ceil((endsAt - Date.now()) / (1000 * 60 * 60 * 24))),
+          });
+          setTagline(response.spotlight.tagline);
+        } else {
+          setActivePromo(null);
+        }
+      } catch {
+        if (active) setActivePromo(null);
+      } finally {
+        if (active) setLoadingPromo(false);
+      }
+    }
+
+    loadCurrentSpotlight();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const handlePay = async () => {
     if (payMethod === 'upi' && !upiId.trim()) return;
     if (payMethod === 'card' && (!card.number || !card.expiry || !card.cvv)) return;
     setProcessing(true);
     await new Promise(r => setTimeout(r, 2500));
-    const paidAt = Date.now();
-    const endsAt = paidAt + 30 * 24 * 60 * 60 * 1000;
-    localStorage.setItem('icc_hospital_promoted', JSON.stringify({ paidAt, tagline }));
+    const paymentMethod = payMethod === 'upi' ? 'UPI' : payMethod === 'card' ? 'Card' : 'Net Banking';
+    const response = await panelApi<{ spotlight: { tagline: string; startsAt: string; endsAt: string } }>('/api/promote', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'promote',
+        tagline,
+        paymentMethod,
+        transactionRef: `HOSP-SPOTLIGHT-${Date.now()}`,
+      }),
+    });
     setProcessing(false);
     setStep('success');
-    setActivePromo({ daysLeft: 30, tagline, paidAt, endsAt });
+    const startsAt = new Date(response.spotlight.startsAt).getTime();
+    const endsAt = new Date(response.spotlight.endsAt).getTime();
+    setActivePromo({
+      tagline: response.spotlight.tagline,
+      startsAt,
+      endsAt,
+      daysLeft: Math.max(0, Math.ceil((endsAt - Date.now()) / (1000 * 60 * 60 * 24))),
+    });
   };
+
+  const cancelPromo = () => {
+    panelApi('/api/promote', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'cancel' }),
+    }).finally(() => setActivePromo(null));
+  };
+
+  if (loadingPromo) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-10">
+        <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
+      </div>
+    );
+  }
 
   // ── ACTIVE VIEW ──
   if (activePromo) {
@@ -159,7 +215,7 @@ export default function HospitalPromotePage() {
                 </motion.div>
               ))}
             </div>
-            <button onClick={() => { localStorage.removeItem('icc_hospital_promoted'); setActivePromo(null); }}
+            <button onClick={cancelPromo}
               className="text-xs font-bold text-center w-full py-2" style={{ color: '#475569' }}>
               Remove from spotlight
             </button>
@@ -193,10 +249,10 @@ export default function HospitalPromotePage() {
                 Appear at the top of the ICC website&apos;s hero section - the first thing thousands of patients see. Drive more inquiries, admissions, and OPD visits.
               </p>
               <div className="flex items-center justify-center gap-2 mt-4">
-                <span className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>₹{SPOTLIGHT_FEE}</span>
+                <span className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>₹{spotlightFee}</span>
                 <div className="text-left">
                   <p className="text-xs font-semibold" style={{ color: '#64748B' }}>for 30 days</p>
-                  <p className="text-[10px]" style={{ color: '#475569' }}>₹{Math.round(SPOTLIGHT_FEE/30)}/day</p>
+                  <p className="text-[10px]" style={{ color: '#475569' }}>₹{Math.round(spotlightFee/30)}/day</p>
                 </div>
               </div>
             </motion.div>
@@ -235,7 +291,7 @@ export default function HospitalPromotePage() {
             <button onClick={() => setStep('payment')}
               className="w-full py-4 rounded-2xl text-sm font-extrabold flex items-center justify-center gap-2 text-white"
               style={{ background: 'linear-gradient(135deg,#8B5CF6,#6D28D9)', boxShadow: '0 8px 24px rgba(139,92,246,0.3)' }}>
-              <Sparkles className="w-4 h-4" /> Get Featured for ₹{SPOTLIGHT_FEE} <ArrowRight className="w-4 h-4" />
+              <Sparkles className="w-4 h-4" /> Get Featured for ₹{spotlightFee} <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </main>
@@ -253,7 +309,7 @@ export default function HospitalPromotePage() {
             <button onClick={() => setStep('info')} className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center" style={{ color: '#64748B' }}><X className="w-4 h-4" /></button>
             <div>
               <h1 className="font-extrabold text-lg" style={{ color: 'var(--text-primary)' }}>Complete Payment</h1>
-              <p className="text-[11px]" style={{ color: '#64748B' }}>Hospital Spotlight · 30 days · ₹{SPOTLIGHT_FEE}</p>
+              <p className="text-[11px]" style={{ color: '#64748B' }}>Hospital Spotlight · 30 days · ₹{spotlightFee}</p>
             </div>
           </div>
         </header>
@@ -267,7 +323,7 @@ export default function HospitalPromotePage() {
                   <p className="text-[10px]" style={{ color: '#64748B' }}>30 days · Starts immediately</p>
                 </div>
               </div>
-              <p className="text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}>₹{SPOTLIGHT_FEE}</p>
+              <p className="text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}>₹{spotlightFee}</p>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
@@ -334,7 +390,7 @@ export default function HospitalPromotePage() {
             <button onClick={handlePay} disabled={processing}
               className="w-full py-4 rounded-2xl text-sm font-extrabold flex items-center justify-center gap-2"
               style={{ background: processing ? 'rgba(139,92,246,0.5)' : 'linear-gradient(135deg,#8B5CF6,#6D28D9)', color:'#fff', boxShadow: processing ? 'none' : '0 8px 24px rgba(139,92,246,0.3)' }}>
-              {processing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</> : <><Shield className="w-4 h-4" /> Pay ₹{SPOTLIGHT_FEE} Securely</>}
+              {processing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</> : <><Shield className="w-4 h-4" /> Pay ₹{spotlightFee} Securely</>}
             </button>
             <p className="text-[10px] text-center" style={{ color: '#475569' }}>🔒 Secure · 256-bit SSL encrypted</p>
           </div>
@@ -344,7 +400,7 @@ export default function HospitalPromotePage() {
   }
 
   // ── SUCCESS ──
-  const promoDetails = activePromo ?? { daysLeft: 0, tagline, paidAt: 0, endsAt: 0 };
+  const promoDetails = activePromo ?? { daysLeft: 0, tagline, startsAt: 0, endsAt: 0 };
 
   return (
     <div className="flex-1 flex items-center justify-center p-6 min-w-0">
@@ -361,9 +417,9 @@ export default function HospitalPromotePage() {
         </div>
         <div className="w-full panel-card p-4 text-left space-y-2">
           {[
-            { label: 'Spotlight started', value: new Date(promoDetails.paidAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) },
+            { label: 'Spotlight started', value: new Date(promoDetails.startsAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) },
             { label: 'Spotlight ends', value: new Date(promoDetails.endsAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) },
-            { label: 'Amount paid', value: `₹${SPOTLIGHT_FEE}` },
+            { label: 'Amount paid', value: `₹${spotlightFee}` },
           ].map((r,i) => (
             <div key={i} className="flex items-center justify-between text-xs">
               <span style={{ color: '#64748B' }}>{r.label}</span>

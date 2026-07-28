@@ -1,9 +1,16 @@
 const { boolFromDb, parseJson } = require('./mysqlUtils');
+const { buildAvailabilitySchedule } = require('./doctorAvailability');
 
 function formatDoctor(row) {
   const isActive = boolFromDb(row.account_is_active ?? 1);
   const isApproved = boolFromDb(row.is_approved);
   const approvalStatus = isApproved ? 'approved' : (isActive ? 'pending' : 'rejected');
+  const availability = parseJson(row.availability, []);
+  const availabilitySchedule = buildAvailabilitySchedule({
+    availability,
+    availabilitySchedule: parseJson(row.availability_schedule, null),
+    opdTimings: row.opd_timings || '',
+  });
   return {
     id: String(row.id),
     userId: row.user_id ? String(row.user_id) : null,
@@ -23,7 +30,8 @@ function formatDoctor(row) {
     area: row.area,
     rating: Number(row.rating || 0),
     gender: row.gender,
-    availability: parseJson(row.availability, []),
+    availability,
+    availabilitySchedule,
     consultationType: row.consultation_type,
     isApproved,
     isSubscribed: boolFromDb(row.is_subscribed),

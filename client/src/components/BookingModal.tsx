@@ -4,34 +4,16 @@ import React, { startTransition, useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X,
-  User,
-  Phone,
-  Calendar,
-  Clock,
-  MapPin,
-  Building2,
-  Stethoscope,
-  Star,
-  BadgeCheck,
-  ChevronDown,
-  CheckCircle2,
-  AlertCircle,
-  Video,
-  PhoneCall,
-  Syringe,
-  Paperclip,
-  FileText,
-  ImageIcon,
-  Trash2,
-  UploadCloud,
+  X, User, Phone, Calendar, Clock, MapPin, Building2, Stethoscope, Star,
+  BadgeCheck, ChevronDown, CheckCircle2, AlertCircle, Video, PhoneCall, Syringe,
+  Paperclip, FileText, ImageIcon, Trash2, UploadCloud, Copy, Check, Sparkles, Upload
 } from 'lucide-react';
 import { siteApi } from '@/lib/api';
 import { usePatientAuth } from '@/lib/patientAuth';
 
-/* ─────────────────────────────────────────
-   Types
-───────────────────────────────────────── */
+const OFFICIAL_UPI_ID = '9024155604@ibl';
+const CONSULTATION_TOKEN_FEE = 9; // ₹9 consultation fee
+
 export interface BookingDoctor {
   id: string;
   name: string;
@@ -46,6 +28,8 @@ export interface BookingDoctor {
   consultationType: string;
   hospitalName?: string;
   availability: string[];
+  availabilitySchedule?: Record<string, string[]>;
+  opdTimings?: string;
 }
 
 interface BookingFormData {
@@ -57,6 +41,7 @@ interface BookingFormData {
   timeSlot: string;
   reason: string;
   mode: 'Clinic Visit' | 'Video Consult' | 'Phone Consult';
+  utrNumber: string;
 }
 
 interface FormErrors {
@@ -67,6 +52,7 @@ interface FormErrors {
   appointmentDate?: string;
   timeSlot?: string;
   reason?: string;
+  utrNumber?: string;
 }
 
 interface Props {
@@ -75,26 +61,63 @@ interface Props {
   onClose: () => void;
 }
 
-/* ─────────────────────────────────────────
-   Time slots (static demo)
-───────────────────────────────────────── */
-const TIME_SLOTS = [
-  '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM',
-  '11:00 AM', '11:30 AM',
-  '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM',
-  '5:00 PM', '5:30 PM', '6:00 PM',
-];
+const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const BOOKED_SLOTS = ['9:30 AM', '11:00 AM', '3:00 PM']; // Demo: pre-booked
+function formatDateLabel(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  return date.toLocaleDateString('en-IN', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
-/* ─────────────────────────────────────────
-   BookingModal
-───────────────────────────────────────── */
+function getUpcomingAvailableDates(doctor: BookingDoctor, daysAhead = 21) {
+  const allowed = new Set(
+    Object.entries(doctor.availabilitySchedule || {})
+      .filter(([, slots]) => Array.isArray(slots) && slots.length > 0)
+      .map(([day]) => day.slice(0, 3))
+  );
+
+  const fallbackDays = (doctor.availability || []).map((day) => day.slice(0, 3));
+  const activeDays = allowed.size > 0 ? allowed : new Set(fallbackDays.length > 0 ? fallbackDays : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+
+  const results: Array<{ value: string; label: string }> = [];
+  const today = new Date();
+
+  for (let i = 1; i <= daysAhead; i++) {
+    const candidate = new Date(today);
+    candidate.setDate(today.getDate() + i);
+
+    const dayName = SHORT_DAYS[candidate.getDay()];
+    if (activeDays.has(dayName)) {
+      const year = candidate.getFullYear();
+      const month = String(candidate.getMonth() + 1).padStart(2, '0');
+      const day = String(candidate.getDate()).padStart(2, '0');
+
+      results.push({
+        value: `${year}-${month}-${day}`,
+        label: candidate.toLocaleDateString('en-IN', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+        }),
+      });
+    }
+  }
+
+  return results;
+}
+
 export default function BookingModal({ doctor, isOpen, onClose }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
   const { isLoggedIn, patient } = usePatientAuth();
+
+  // Booking Steps: 'details' -> 'payment' -> 'confirmed'
+  const [bookingStep, setBookingStep] = useState<'details' | 'payment' | 'confirmed'>('details');
 
   const [form, setForm] = useState<BookingFormData>({
     patientName: '',
@@ -105,12 +128,18 @@ export default function BookingModal({ doctor, isOpen, onClose }: Props) {
     timeSlot: '',
     reason: '',
     mode: 'Clinic Visit',
+    utrNumber: '',
   });
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
-  // ── Report upload state ──
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [availableDates, setAvailableDates] = useState<Array<{ value: string; label: string }>>([]);
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [copiedUpi, setCopiedUpi] = useState(false);
+
+  // Report upload state
   const [reportFiles, setReportFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -137,7 +166,12 @@ export default function BookingModal({ doctor, isOpen, onClose }: Props) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // Reset form when modal opens for a new doctor
+  const copyUpiId = () => {
+    navigator.clipboard.writeText(OFFICIAL_UPI_ID);
+    setCopiedUpi(true);
+    setTimeout(() => setCopiedUpi(false), 2000);
+  };
+
   useEffect(() => {
     if (isOpen) {
       if (!isLoggedIn) {
@@ -155,29 +189,75 @@ export default function BookingModal({ doctor, isOpen, onClose }: Props) {
           timeSlot: '',
           reason: '',
           mode: 'Clinic Visit',
+          utrNumber: '',
         });
         setErrors({});
-        setSubmitted(false);
+        setBookingStep('details');
         setSubmitting(false);
         setReportFiles([]);
       });
     }
   }, [isOpen, doctor?.id, isLoggedIn, onClose, pathname, patient, router]);
 
-  // Lock body scroll when open
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+    if (!doctor || !isOpen) return;
+
+    const dates = getUpcomingAvailableDates(doctor);
+    setAvailableDates(dates);
+    setAvailableSlots([]);
+    setBookedSlots([]);
+
+    setForm((prev) => ({
+      ...prev,
+      appointmentDate: dates[0]?.value || '',
+      timeSlot: '',
+    }));
+  }, [doctor, isOpen]);
+
+  useEffect(() => {
+    if (!doctor || !isOpen || !form.appointmentDate) {
+      setAvailableSlots([]);
+      return;
     }
-    return () => { document.body.style.overflow = ''; };
-  }, [isOpen]);
+
+    let active = true;
+    setSlotsLoading(true);
+
+    const shortDay = SHORT_DAYS[new Date(`${form.appointmentDate}T00:00:00`).getDay()];
+    const fullDayName = Object.keys(DAY_NAME_MAP).find(k => DAY_NAME_MAP[k] === shortDay) || 'Monday';
+
+    const rawSchedule = (doctor.availabilitySchedule || {})[fullDayName] || (doctor.availabilitySchedule || {})[shortDay];
+    const defaultSlots = ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM'];
+    const doctorSlots = Array.isArray(rawSchedule) && rawSchedule.length > 0 ? rawSchedule : defaultSlots;
+
+    siteApi<{ bookedTimeSlots?: string[] }>(
+      `/api/appointments/booked-slots?doctorId=${encodeURIComponent(doctor.id)}&appointmentDate=${encodeURIComponent(form.appointmentDate)}`
+    )
+      .then((data) => {
+        if (!active) return;
+        setBookedSlots(data.bookedTimeSlots || []);
+        setAvailableSlots(doctorSlots);
+      })
+      .catch(() => {
+        if (!active) return;
+        setBookedSlots([]);
+        setAvailableSlots(doctorSlots);
+      })
+      .finally(() => {
+        if (!active) return;
+        setSlotsLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [doctor, isOpen, form.appointmentDate]);
 
   if (!doctor) return null;
 
-  /* ── Validation ── */
-  const validate = (): boolean => {
+  const DAY_NAME_MAP: Record<string, string> = {
+    Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat', Sunday: 'Sun'
+  };
+
+  const validateDetails = (): boolean => {
     const newErrors: FormErrors = {};
     if (!form.patientName.trim()) newErrors.patientName = 'Patient name is required';
     if (!form.mobile.trim()) {
@@ -199,13 +279,20 @@ export default function BookingModal({ doctor, isOpen, onClose }: Props) {
     return Object.keys(newErrors).length === 0;
   };
 
-  /* ── Submit ── */
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleProceedToPayment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (!validateDetails()) return;
+    setBookingStep('payment');
+  };
+
+  const handleFinalBookingSubmit = async () => {
+    if (!form.utrNumber.trim() || form.utrNumber.trim().length < 6) {
+      setErrors(prev => ({ ...prev, utrNumber: 'Please enter a valid 12-digit UTR / UPI Reference Number' }));
+      return;
+    }
 
     setSubmitting(true);
-
+    try {
       await siteApi('/api/appointments', {
         method: 'POST',
         body: JSON.stringify({
@@ -216,11 +303,20 @@ export default function BookingModal({ doctor, isOpen, onClose }: Props) {
           appointmentDate: form.appointmentDate,
           timeSlot: form.timeSlot,
           concern: form.reason,
-      }),
-    });
+          mode: form.mode,
+          fee: CONSULTATION_TOKEN_FEE,
+          paymentMethod: 'UPI',
+          transactionRef: form.utrNumber.trim(),
+          paymentStatus: 'Submitted (Verification Pending)',
+        }),
+      });
 
-    setSubmitting(false);
-    setSubmitted(true);
+      setSubmitting(false);
+      setBookingStep('confirmed');
+    } catch (err) {
+      setErrors(prev => ({ ...prev, utrNumber: err instanceof Error ? err.message : 'Failed to submit appointment booking' }));
+      setSubmitting(false);
+    }
   };
 
   const update = (field: keyof BookingFormData, val: string) => {
@@ -230,515 +326,315 @@ export default function BookingModal({ doctor, isOpen, onClose }: Props) {
     }
   };
 
-  /* ── Get tomorrow date as min ── */
-  const minDate = new Date();
-  minDate.setDate(minDate.getDate() + 1);
-  const minDateStr = minDate.toISOString().split('T')[0];
-
-  /* ── Mode icons ── */
   const modeOptions: { label: BookingFormData['mode']; icon: React.ReactNode; desc: string }[] = [
     { label: 'Clinic Visit', icon: <Syringe className="w-4 h-4" />, desc: 'In-person visit' },
-    { label: 'Video Consult', icon: <Video className="w-4 h-4" />, desc: 'Online video call' },
-    { label: 'Phone Consult', icon: <PhoneCall className="w-4 h-4" />, desc: 'Voice call' },
+    { label: 'Video Consult', icon: <Video className="w-4 h-4" />, desc: 'HD Telehealth call' },
+    { label: 'Phone Consult', icon: <PhoneCall className="w-4 h-4" />, desc: 'Voice consult' },
   ];
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Overlay */}
           <motion.div
             ref={overlayRef}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.22 }}
-            onClick={onClose}
-            className="fixed inset-0 z-[100] bg-dark-navy/60 backdrop-blur-sm"
-          />
-
-          {/* Modal panel */}
-          <motion.div
-            initial={{ opacity: 0, y: 60, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 40, scale: 0.96 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className="fixed inset-0 z-[101] flex items-center justify-center p-3 sm:p-5 pointer-events-none"
+            onClick={e => { if (e.target === overlayRef.current) onClose(); }}
+            className="fixed inset-0 z-50 bg-dark-navy/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
           >
-            <div
-              className="relative w-full max-w-2xl max-h-[94vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col pointer-events-auto"
-              onClick={e => e.stopPropagation()}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col"
             >
-              {/* ── Top gradient stripe ── */}
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-green via-accent-green to-primary-green" />
-
-              {/* ── Close button ── */}
-              <button
-                onClick={onClose}
-                aria-label="Close modal"
-                className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
-              >
-                <X className="w-4 h-4 text-slate-500" />
-              </button>
-
-              {/* ─────────────── SUCCESS STATE ─────────────── */}
-              {submitted ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex flex-col items-center justify-center gap-5 p-10 text-center flex-1"
-                >
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', delay: 0.1 }}
-                    className="w-20 h-20 rounded-full bg-soft-green flex items-center justify-center shadow-lg"
-                  >
-                    <CheckCircle2 className="w-10 h-10 text-primary-green" />
-                  </motion.div>
+              {/* Header */}
+              <div className="gradient-hero p-5 border-b border-slate-100 flex items-start justify-between flex-shrink-0 relative">
+                <div className="flex items-center gap-3.5 pr-8">
+                  {doctor.photo ? (
+                    <img src={doctor.photo} alt={doctor.name} className="w-14 h-14 rounded-2xl object-cover border-2 border-primary-green/30 shadow-md" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-2xl bg-primary-green/10 text-primary-green font-bold text-xl flex items-center justify-center border-2 border-primary-green/30">
+                      {doctor.name[0]}
+                    </div>
+                  )}
                   <div>
-                    <h2 className="text-2xl font-extrabold text-dark-navy mt-2">Booking Confirmed! 🎉</h2>
-                    <p className="text-text-grey text-sm mt-2 max-w-sm mx-auto leading-relaxed">
-                      Your appointment request with <strong className="text-dark-navy">{doctor.name}</strong> on{' '}
-                      <strong className="text-primary-green">{form.appointmentDate}</strong> at{' '}
-                      <strong className="text-primary-green">{form.timeSlot}</strong> has been received.
-                    </p>
-                    <p className="text-xs text-text-grey mt-3">
-                      Our consultant will contact you shortly on <strong>{form.mobile}</strong> to confirm.
-                    </p>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary-green bg-soft-green px-2 py-0.5 rounded-full inline-block mb-1">
+                      Consultation Booking
+                    </span>
+                    <h3 className="font-extrabold text-dark-navy text-base leading-snug line-clamp-1">{doctor.name}</h3>
+                    <p className="text-xs text-text-grey mt-0.5">{doctor.speciality} · {doctor.qualification}</p>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-3 mt-2 w-full max-w-xs">
+                </div>
+
+                <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors flex-shrink-0">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Body Content */}
+              <div className="p-5 sm:p-6 overflow-y-auto panel-scroll flex-1">
+                {bookingStep === 'confirmed' ? (
+                  /* CONFIRMED SLIP STEP */
+                  <div className="text-center space-y-4 py-4">
+                    <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto border-2 border-emerald-500/30">
+                      <CheckCircle2 className="w-8 h-8" />
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-black px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">
+                        ₹9 UPI Payment Submitted (UTR: {form.utrNumber})
+                      </span>
+                      <h3 className="text-xl font-extrabold text-dark-navy mt-2">Appointment Request Submitted!</h3>
+                      <p className="text-xs text-text-grey leading-relaxed">
+                        Your ₹9 consultation fee payment with UTR <span className="font-mono font-bold text-dark-navy">{form.utrNumber}</span> is submitted for verification.
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-text-grey">Patient Name:</span>
+                        <span className="font-bold text-dark-navy">{form.patientName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-text-grey">Appointment Date:</span>
+                        <span className="font-bold text-dark-navy">{formatDateLabel(form.appointmentDate)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-text-grey">Time Slot:</span>
+                        <span className="font-bold text-dark-navy">{form.timeSlot}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-text-grey">Mode:</span>
+                        <span className="font-bold text-primary-green">{form.mode}</span>
+                      </div>
+                    </div>
+
                     <button
                       onClick={onClose}
-                      className="flex-1 text-sm font-bold text-white gradient-primary py-3 rounded-xl shadow-md glow-green hover-lift"
+                      className="w-full py-3.5 rounded-xl text-xs font-bold text-white gradient-primary shadow-lg glow-green"
                     >
                       Done
                     </button>
                   </div>
-                </motion.div>
-              ) : (
-                <>
-                  {/* ─────────────── DOCTOR INFO HEADER ─────────────── */}
-                  <div className="flex-shrink-0 px-5 pt-6 pb-4 border-b border-slate-100 bg-gradient-to-r from-soft-green/60 to-light-mint/40">
-                    <p className="text-[10px] font-bold text-primary-green uppercase tracking-widest mb-3">
-                      Book Appointment
-                    </p>
-                    <div className="flex items-start gap-4">
-                      {/* Doctor photo */}
-                      <div className="relative flex-shrink-0">
-                        <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-white shadow-md">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={doctor.photo} alt={doctor.name} className="w-full h-full object-cover" />
-                        </div>
-                        <div className="absolute -bottom-1 -right-1 bg-primary-green rounded-full p-0.5 border-2 border-white">
-                          <BadgeCheck className="w-3 h-3 text-white" />
-                        </div>
+                ) : bookingStep === 'payment' ? (
+                  /* ₹9 UPI QR PAYMENT STEP */
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between border-b pb-3">
+                      <button onClick={() => setBookingStep('details')} className="text-xs font-bold text-primary-green flex items-center gap-1">
+                        ← Edit Details
+                      </button>
+                      <span className="text-xs font-black text-dark-navy">Step 2 of 2: ₹9 Payment</span>
+                    </div>
+
+                    {/* QR Code Card */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-center space-y-3">
+                      <div className="inline-block p-2.5 bg-white rounded-2xl shadow-md border border-slate-200">
+                        <img src="/payment-qr.png" alt="UPI Payment QR Code" className="w-44 h-44 object-contain mx-auto" />
                       </div>
 
-                      {/* Doctor details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                          <span className="text-[10px] font-bold text-primary-green bg-soft-green px-2 py-0.5 rounded-full border border-primary-green/15">
-                            {doctor.speciality}
-                          </span>
-                          <span className="flex items-center gap-0.5 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
-                            <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                            {doctor.rating}
-                          </span>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pay Consultation Fee ₹9 to Official UPI</p>
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="font-mono text-sm font-black text-dark-navy">{OFFICIAL_UPI_ID}</span>
+                          <button
+                            type="button"
+                            onClick={copyUpiId}
+                            className="px-2 py-0.5 rounded-lg bg-soft-green text-primary-green text-[10px] font-bold flex items-center gap-1 border border-primary-green/20"
+                          >
+                            {copiedUpi ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                            {copiedUpi ? 'Copied' : 'Copy UPI'}
+                          </button>
                         </div>
-                        <h3 className="font-extrabold text-dark-navy text-base leading-tight">{doctor.name}</h3>
-                        <p className="text-xs text-text-grey font-medium mt-0.5 line-clamp-1">{doctor.qualification}</p>
-
-                        {/* Stats row */}
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-text-grey">
-                          <span className="flex items-center gap-1 font-semibold">
-                            <Stethoscope className="w-3 h-3 text-primary-green" />
-                            {doctor.experience} Yrs Exp
-                          </span>
-                          <span className="flex items-center gap-1 font-semibold">
-                            <MapPin className="w-3 h-3 text-slate-400" />
-                            {doctor.location}
-                          </span>
-                          {doctor.hospitalName && (
-                            <span className="flex items-center gap-1 font-semibold">
-                              <Building2 className="w-3 h-3 text-slate-400" />
-                              <span className="line-clamp-1">{doctor.hospitalName}</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Fee */}
-                      <div className="flex-shrink-0 text-right hidden sm:block">
-                        <p className="text-[10px] text-text-grey uppercase tracking-wide font-medium">Fee</p>
-                        <p className="text-xl font-black text-dark-navy leading-none">₹{doctor.consultationFee}</p>
-                        <p className="text-[10px] text-text-grey">/ session</p>
                       </div>
                     </div>
-                  </div>
 
-                  {/* ─────────────── FORM ─────────────── */}
-                  <form
-                    onSubmit={handleSubmit}
-                    className="flex-1 overflow-y-auto custom-scrollbar px-5 py-5 flex flex-col gap-5"
-                    noValidate
-                  >
-                    {/* Section: Patient Details */}
+                    {/* UTR Input Form */}
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-text-grey mb-1">
+                          12-Digit UTR / UPI Reference Number <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={form.utrNumber}
+                          onChange={e => update('utrNumber', e.target.value)}
+                          placeholder="e.g. 420198765432"
+                          maxLength={20}
+                          className="w-full text-sm px-3.5 py-2.5 rounded-xl border bg-slate-50 text-dark-navy font-mono font-bold focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary-green/20"
+                        />
+                        {errors.utrNumber && (
+                          <p className="flex items-center gap-1 text-[10px] text-red-500 font-semibold mt-1">
+                            <AlertCircle className="w-3 h-3" /> {errors.utrNumber}
+                          </p>
+                        )}
+                        <p className="text-[10px] text-slate-400 mt-1">Check your GPay / PhonePe / Paytm receipt for the 12-digit UTR number.</p>
+                      </div>
+
+                      <button
+                        onClick={handleFinalBookingSubmit}
+                        disabled={submitting}
+                        className="w-full py-3.5 rounded-xl text-xs font-bold text-white gradient-primary shadow-lg glow-green flex items-center justify-center gap-2"
+                      >
+                        {submitting ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4" />
+                            Confirm Booking &amp; Submit UTR
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* STEP 1: APPOINTMENT DETAILS FORM */
+                  <form onSubmit={handleProceedToPayment} className="space-y-5">
+                    {/* Section: Patient Info */}
                     <div>
                       <h4 className="text-xs font-bold text-dark-navy uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-primary-green" />
-                        Patient Details
+                        <User className="w-3.5 h-3.5 text-primary-green" /> Patient Credentials
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {/* Patient Name */}
-                        <div className="sm:col-span-2">
+                        <div>
                           <label className="block text-[11px] font-bold text-text-grey mb-1">
-                            Patient Name <span className="text-red-500">*</span>
+                            Full Name <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
                             value={form.patientName}
                             onChange={e => update('patientName', e.target.value)}
-                            placeholder="Full name of the patient"
-                            className={`w-full text-sm px-3.5 py-2.5 rounded-xl border bg-slate-50 text-dark-navy placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 transition-all ${
-                              errors.patientName
-                                ? 'border-red-400 focus:ring-red-200'
-                                : 'border-slate-200 focus:border-primary-green focus:ring-primary-green/10'
-                            }`}
+                            placeholder="Patient name"
+                            className="w-full text-sm px-3.5 py-2.5 rounded-xl border bg-slate-50 text-dark-navy font-bold focus:outline-none focus:bg-white"
                           />
-                          {errors.patientName && (
-                            <p className="flex items-center gap-1 text-[10px] text-red-500 font-semibold mt-1">
-                              <AlertCircle className="w-3 h-3" /> {errors.patientName}
-                            </p>
-                          )}
                         </div>
 
-                        {/* Mobile */}
                         <div>
                           <label className="block text-[11px] font-bold text-text-grey mb-1">
                             Mobile Number <span className="text-red-500">*</span>
                           </label>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                            <input
-                              type="tel"
-                              value={form.mobile}
-                              onChange={e => update('mobile', e.target.value)}
-                              placeholder="10-digit mobile"
-                              maxLength={10}
-                              className={`w-full pl-9 pr-3.5 py-2.5 rounded-xl border bg-slate-50 text-sm text-dark-navy placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 transition-all ${
-                                errors.mobile
-                                  ? 'border-red-400 focus:ring-red-200'
-                                  : 'border-slate-200 focus:border-primary-green focus:ring-primary-green/10'
-                              }`}
-                            />
-                          </div>
-                          {errors.mobile && (
-                            <p className="flex items-center gap-1 text-[10px] text-red-500 font-semibold mt-1">
-                              <AlertCircle className="w-3 h-3" /> {errors.mobile}
-                            </p>
-                          )}
+                          <input
+                            type="tel"
+                            value={form.mobile}
+                            onChange={e => update('mobile', e.target.value)}
+                            placeholder="10-digit mobile"
+                            maxLength={10}
+                            className="w-full text-sm px-3.5 py-2.5 rounded-xl border bg-slate-50 text-dark-navy font-bold focus:outline-none focus:bg-white"
+                          />
                         </div>
 
-                        {/* Age */}
                         <div>
                           <label className="block text-[11px] font-bold text-text-grey mb-1">
                             Age <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="number"
-                            min={1}
-                            max={120}
                             value={form.age}
                             onChange={e => update('age', e.target.value)}
                             placeholder="Patient age"
-                            className={`w-full text-sm px-3.5 py-2.5 rounded-xl border bg-slate-50 text-dark-navy placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 transition-all ${
-                              errors.age
-                                ? 'border-red-400 focus:ring-red-200'
-                                : 'border-slate-200 focus:border-primary-green focus:ring-primary-green/10'
-                            }`}
+                            className="w-full text-sm px-3.5 py-2.5 rounded-xl border bg-slate-50 text-dark-navy font-bold focus:outline-none focus:bg-white"
                           />
-                          {errors.age && (
-                            <p className="flex items-center gap-1 text-[10px] text-red-500 font-semibold mt-1">
-                              <AlertCircle className="w-3 h-3" /> {errors.age}
-                            </p>
-                          )}
                         </div>
 
-                        {/* Gender */}
-                        <div className="sm:col-span-2">
+                        <div>
                           <label className="block text-[11px] font-bold text-text-grey mb-1">
                             Gender <span className="text-red-500">*</span>
                           </label>
-                          <div className="flex gap-2">
-                            {['Male', 'Female', 'Other'].map(g => (
-                              <button
-                                key={g}
-                                type="button"
-                                onClick={() => update('gender', g)}
-                                className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
-                                  form.gender === g
-                                    ? 'bg-primary-green text-white border-primary-green shadow-sm'
-                                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-primary-green/40 hover:text-primary-green'
-                                }`}
-                              >
-                                {g}
-                              </button>
-                            ))}
-                          </div>
-                          {errors.gender && (
-                            <p className="flex items-center gap-1 text-[10px] text-red-500 font-semibold mt-1">
-                              <AlertCircle className="w-3 h-3" /> {errors.gender}
-                            </p>
-                          )}
+                          <select
+                            value={form.gender}
+                            onChange={e => update('gender', e.target.value)}
+                            className="w-full text-sm px-3.5 py-2.5 rounded-xl border bg-slate-50 text-dark-navy font-bold focus:outline-none"
+                          >
+                            <option value="">Select Gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                          </select>
                         </div>
                       </div>
                     </div>
 
-                    {/* Section: Appointment Details */}
+                    {/* Section: Appointment Date & Slot */}
                     <div>
                       <h4 className="text-xs font-bold text-dark-navy uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-primary-green" />
-                        Appointment Details
+                        <Calendar className="w-3.5 h-3.5 text-primary-green" /> Appointment Schedule
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {/* Date */}
                         <div>
-                          <label className="block text-[11px] font-bold text-text-grey mb-1">
-                            Date <span className="text-red-500">*</span>
-                          </label>
-                          <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                            <input
-                              type="date"
-                              min={minDateStr}
-                              value={form.appointmentDate}
-                              onChange={e => update('appointmentDate', e.target.value)}
-                              className={`w-full pl-9 pr-3.5 py-2.5 rounded-xl border bg-slate-50 text-sm text-dark-navy focus:outline-none focus:bg-white focus:ring-2 transition-all ${
-                                errors.appointmentDate
-                                  ? 'border-red-400 focus:ring-red-200'
-                                  : 'border-slate-200 focus:border-primary-green focus:ring-primary-green/10'
-                              }`}
-                            />
-                          </div>
-                          {errors.appointmentDate && (
-                            <p className="flex items-center gap-1 text-[10px] text-red-500 font-semibold mt-1">
-                              <AlertCircle className="w-3 h-3" /> {errors.appointmentDate}
-                            </p>
-                          )}
+                          <label className="block text-[11px] font-bold text-text-grey mb-1">Date</label>
+                          <select
+                            value={form.appointmentDate}
+                            onChange={e => update('appointmentDate', e.target.value)}
+                            className="w-full text-sm px-3.5 py-2.5 rounded-xl border bg-slate-50 text-dark-navy font-bold focus:outline-none"
+                          >
+                            {availableDates.map(d => (
+                              <option key={d.value} value={d.value}>{d.label}</option>
+                            ))}
+                          </select>
                         </div>
 
-                        {/* Time Slot */}
                         <div>
-                          <label className="block text-[11px] font-bold text-text-grey mb-1">
-                            Time Slot <span className="text-red-500">*</span>
-                          </label>
-                          <div className="relative">
-                            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                            <select
-                              value={form.timeSlot}
-                              onChange={e => update('timeSlot', e.target.value)}
-                              className={`w-full pl-9 pr-8 py-2.5 rounded-xl border bg-slate-50 text-sm text-dark-navy focus:outline-none focus:bg-white focus:ring-2 transition-all appearance-none ${
-                                errors.timeSlot
-                                  ? 'border-red-400 focus:ring-red-200'
-                                  : 'border-slate-200 focus:border-primary-green focus:ring-primary-green/10'
-                              }`}
-                            >
-                              <option value="">Select a slot</option>
-                              {TIME_SLOTS.map(slot => (
-                                <option
-                                  key={slot}
-                                  value={slot}
-                                  disabled={BOOKED_SLOTS.includes(slot)}
-                                >
-                                  {slot}{BOOKED_SLOTS.includes(slot) ? ' (Booked)' : ''}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                          </div>
-                          {errors.timeSlot && (
-                            <p className="flex items-center gap-1 text-[10px] text-red-500 font-semibold mt-1">
-                              <AlertCircle className="w-3 h-3" /> {errors.timeSlot}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Reason */}
-                        <div className="sm:col-span-2">
-                          <label className="block text-[11px] font-bold text-text-grey mb-1">
-                            Reason / Symptoms <span className="text-red-500">*</span>
-                          </label>
-                          <textarea
-                            rows={3}
-                            value={form.reason}
-                            onChange={e => update('reason', e.target.value)}
-                            placeholder="Briefly describe the symptoms, concern, or reason for visit..."
-                            className={`w-full text-sm px-3.5 py-2.5 rounded-xl border bg-slate-50 text-dark-navy placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 transition-all resize-none ${
-                              errors.reason
-                                ? 'border-red-400 focus:ring-red-200'
-                                : 'border-slate-200 focus:border-primary-green focus:ring-primary-green/10'
-                            }`}
-                          />
-                          {errors.reason && (
-                            <p className="flex items-center gap-1 text-[10px] text-red-500 font-semibold mt-1">
-                              <AlertCircle className="w-3 h-3" /> {errors.reason}
-                            </p>
-                          )}
+                          <label className="block text-[11px] font-bold text-text-grey mb-1">Time Slot</label>
+                          <select
+                            value={form.timeSlot}
+                            onChange={e => update('timeSlot', e.target.value)}
+                            className="w-full text-sm px-3.5 py-2.5 rounded-xl border bg-slate-50 text-dark-navy font-bold focus:outline-none"
+                          >
+                            <option value="">Select Time Slot</option>
+                            {availableSlots.map(s => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     </div>
 
-                    {/* Section: Preferred Mode */}
+                    {/* Mode selection */}
                     <div>
-                      <h4 className="text-xs font-bold text-dark-navy uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                        <Stethoscope className="w-3.5 h-3.5 text-primary-green" />
-                        Preferred Mode
-                      </h4>
+                      <label className="block text-[11px] font-bold text-text-grey mb-2">Preferred Consultation Mode</label>
                       <div className="grid grid-cols-3 gap-2">
                         {modeOptions.map(opt => (
                           <button
                             key={opt.label}
                             type="button"
                             onClick={() => update('mode', opt.label)}
-                            className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border text-center transition-all ${
-                              form.mode === opt.label
-                                ? 'bg-primary-green text-white border-primary-green shadow-md'
-                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-primary-green/40 hover:text-primary-green'
-                            }`}
+                            className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border text-center transition-all ${form.mode === opt.label ? 'bg-primary-green text-white border-primary-green' : 'bg-slate-50 text-slate-600 border-slate-200'}`}
                           >
                             {opt.icon}
-                            <span className="text-[10px] font-bold leading-tight">{opt.label}</span>
-                            <span className={`text-[9px] font-medium leading-tight ${form.mode === opt.label ? 'text-white/80' : 'text-slate-400'}`}>
-                              {opt.desc}
-                            </span>
+                            <span className="text-[10px] font-bold">{opt.label}</span>
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    {/* Section: Upload Reports (Optional) */}
+                    {/* Concern / Reason */}
                     <div>
-                      <h4 className="text-xs font-bold text-dark-navy uppercase tracking-wide mb-1 flex items-center gap-1.5">
-                        <Paperclip className="w-3.5 h-3.5 text-primary-green" />
-                        Medical Reports
-                        <span className="ml-1 text-[9px] font-bold text-slate-400 border border-slate-200 bg-slate-50 px-1.5 py-0.5 rounded-full normal-case tracking-normal">Optional</span>
-                      </h4>
-                      <p className="text-[10px] text-text-grey mb-2.5">
-                        Attach previous test results, prescriptions, or X-rays to help the doctor prepare. Accepted: JPG, PNG, PDF · Max {MAX_FILES} files.
-                      </p>
-
-                      {/* Drop zone */}
-                      <div
-                        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                        onDragLeave={() => setDragOver(false)}
-                        onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
-                        onClick={() => fileInputRef.current?.click()}
-                        className={`relative flex flex-col items-center justify-center gap-2 py-5 rounded-2xl border-2 border-dashed cursor-pointer transition-all duration-200 ${
-                          dragOver
-                            ? 'border-primary-green bg-soft-green scale-[1.01]'
-                            : reportFiles.length >= MAX_FILES
-                              ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
-                              : 'border-slate-200 bg-slate-50 hover:border-primary-green/50 hover:bg-soft-green/40'
-                        }`}
-                      >
-                        <UploadCloud className={`w-7 h-7 transition-colors ${dragOver ? 'text-primary-green' : 'text-slate-300'}`} />
-                        <div className="text-center">
-                          <p className="text-xs font-bold text-dark-navy">
-                            {dragOver ? 'Drop files here' : 'Click to upload or drag & drop'}
-                          </p>
-                          <p className="text-[10px] text-text-grey mt-0.5">
-                            {reportFiles.length >= MAX_FILES ? `Max ${MAX_FILES} files reached` : `${reportFiles.length}/${MAX_FILES} files selected`}
-                          </p>
-                        </div>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          multiple
-                          accept="image/jpeg,image/png,image/webp,application/pdf"
-                          className="hidden"
-                          onChange={e => { addFiles(e.target.files); e.target.value = ''; }}
-                          disabled={reportFiles.length >= MAX_FILES}
-                        />
-                      </div>
-
-                      {/* File previews */}
-                      {reportFiles.length > 0 && (
-                        <div className="flex flex-col gap-2 mt-3">
-                          {reportFiles.map((file, idx) => {
-                            const isImg = file.type.startsWith('image/');
-                            return (
-                              <motion.div
-                                key={`${file.name}-${idx}`}
-                                initial={{ opacity: 0, y: -6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -6 }}
-                                transition={{ duration: 0.2 }}
-                                className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5"
-                              >
-                                {/* Icon / thumbnail */}
-                                <div className="w-8 h-8 rounded-lg bg-primary-green/10 flex items-center justify-center flex-shrink-0">
-                                  {isImg
-                                    ? <ImageIcon className="w-4 h-4 text-primary-green" />
-                                    : <FileText className="w-4 h-4 text-primary-green" />
-                                  }
-                                </div>
-                                {/* File info */}
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-semibold text-dark-navy truncate">{file.name}</p>
-                                  <p className="text-[10px] text-text-grey">{formatFileSize(file.size)} · {isImg ? 'Image' : 'PDF'}</p>
-                                </div>
-                                {/* Remove */}
-                                <button
-                                  type="button"
-                                  onClick={e => { e.stopPropagation(); removeFile(idx); }}
-                                  className="w-6 h-6 rounded-full bg-red-50 hover:bg-red-100 flex items-center justify-center flex-shrink-0 transition-colors"
-                                >
-                                  <Trash2 className="w-3 h-3 text-red-400" />
-                                </button>
-                              </motion.div>
-                            );
-                          })}
-                        </div>
-                      )}
+                      <label className="block text-[11px] font-bold text-text-grey mb-1">Symptoms / Primary Health Concern</label>
+                      <textarea
+                        value={form.reason}
+                        onChange={e => update('reason', e.target.value)}
+                        rows={2}
+                        placeholder="Briefly describe your symptoms..."
+                        className="w-full text-xs px-3.5 py-2.5 rounded-xl border bg-slate-50 text-dark-navy resize-none font-medium"
+                      />
                     </div>
 
-                    {/* Note */}
-                    <p className="text-[10px] text-text-grey bg-soft-green/60 border border-primary-green/10 rounded-xl px-3.5 py-2.5 leading-relaxed">
-                      <span className="font-bold text-primary-green">Note:</span> India Care Consultancy does not charge patients for booking coordination. Our consultant will contact you to confirm the slot.
-                    </p>
-
-                    {/* Actions */}
-                    <div className="flex gap-3 pt-1 pb-1">
-                      <button
-                        type="button"
-                        onClick={onClose}
-                        className="flex-1 text-sm font-bold text-slate-600 border-2 border-slate-200 py-3 rounded-xl hover:bg-slate-50 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={submitting}
-                        className="flex-[2] flex items-center justify-center gap-2 text-sm font-bold text-white gradient-primary py-3 rounded-xl shadow-lg glow-green hover-lift disabled:opacity-70 disabled:cursor-not-allowed"
-                      >
-                        {submitting ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            Confirming...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 className="w-4 h-4" />
-                            Confirm Booking
-                          </>
-                        )}
-                      </button>
-                    </div>
+                    <button
+                      type="submit"
+                      className="w-full py-3.5 rounded-xl text-xs font-bold text-white gradient-primary shadow-lg glow-green flex items-center justify-center gap-2"
+                    >
+                      Proceed to ₹9 Payment &amp; Confirmation →
+                    </button>
                   </form>
-                </>
-              )}
-            </div>
+                )}
+              </div>
+            </motion.div>
           </motion.div>
         </>
       )}

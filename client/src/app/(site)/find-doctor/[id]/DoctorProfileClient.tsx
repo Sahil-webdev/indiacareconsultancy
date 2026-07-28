@@ -226,6 +226,8 @@ export default function DoctorProfileClient({ doctor }: Props) {
     consultationType: doctor.consultationType,
     hospitalName: doctor.hospitalName || hospital?.name,
     availability: doctor.availability,
+    availabilitySchedule: doctor.availabilitySchedule,
+    opdTimings: (doctor as any).opdTimings,
   };
 
   /* Match score computation */
@@ -240,12 +242,10 @@ export default function DoctorProfileClient({ doctor }: Props) {
   const fullDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const shortDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const isAvailable = (day: string) => doctor.availability.some(d => day.startsWith(d) || d.startsWith(day.substring(0, 3)));
-
-  const timeSlots = {
-    Morning: ['9:00 AM', '10:00 AM', '11:00 AM', '11:30 AM'],
-    Afternoon: ['1:00 PM', '2:00 PM', '3:00 PM'],
-    Evening: ['5:00 PM', '6:00 PM', '6:30 PM'],
-  };
+  const selectedDayShort = selectedDay ? shortDays[fullDays.indexOf(selectedDay)] : null;
+  const selectedDaySlots = selectedDayShort
+    ? (doctor.availabilitySchedule?.[selectedDayShort] || [])
+    : [];
 
   const reviewStats = [
     { label: 'Overall Rating',          pct: Math.round(doctor.rating / 5 * 100) },
@@ -807,27 +807,18 @@ export default function DoctorProfileClient({ doctor }: Props) {
                     className="overflow-hidden"
                   >
                     <p className="text-xs font-bold text-dark-navy mb-4">Available slots for <span className="text-primary-green">{selectedDay}</span></p>
-                    <div className="flex flex-col gap-4">
-                      {Object.entries(timeSlots).map(([period, slots]) => (
-                        <div key={period}>
-                          <h4 className="text-[10px] font-bold text-text-grey uppercase tracking-wide mb-2">{period}</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {slots.map((slot, j) => (
-                              <motion.button
-                                key={slot}
-                                whileHover={{ scale: 1.04 }}
-                                className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors ${
-                                  j === 1 ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed'
-                                  : 'bg-soft-green text-primary-green border-primary-green/20 hover:bg-light-mint hover:border-primary-green/40'
-                                }`}
-                                disabled={j === 1}
-                              >
-                                {slot} {j === 1 ? '(Booked)' : ''}
-                              </motion.button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                    <div className="flex flex-wrap gap-2">
+                      {selectedDaySlots.length > 0 ? selectedDaySlots.map((slot) => (
+                        <motion.button
+                          key={slot}
+                          whileHover={{ scale: 1.04 }}
+                          className="text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors bg-soft-green text-primary-green border-primary-green/20 hover:bg-light-mint hover:border-primary-green/40"
+                        >
+                          {slot}
+                        </motion.button>
+                      )) : (
+                        <p className="text-xs text-text-grey">No slots configured for this day yet.</p>
+                      )}
                     </div>
                     <button
                       onClick={() => setIsBookingOpen(true)}

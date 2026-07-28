@@ -5,6 +5,7 @@ const { fetchOne, fetchRows } = require('../services/mysqlUtils');
 const { formatDoctor } = require('../services/entityFormatters');
 const { createUserAccount } = require('../services/accountProvisioning');
 const { submitDoctorProfileChanges } = require('../services/profileChangeWorkflow');
+const { buildAvailabilitySchedule, getDateDayKey } = require('../services/doctorAvailability');
 
 const router = express.Router();
 
@@ -94,6 +95,54 @@ router.get('/me/profile', protect, async (req, res, next) => {
     }
     const payload = await getDoctorById(doctor.id);
     res.json({ success: true, doctor: payload });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/:id/availability', async (req, res, next) => {
+  try {
+    const doctor = await getDoctorById(req.params.id);
+    if (!doctor) {
+      return res.status(404).json({ success: false, message: 'Doctor not found' });
+    }
+
+    const date = String(req.query.date || '').trim();
+    if (!date) {
+      return res.status(400).json({ success: false, message: 'Date is required' });
+    }
+
+    const dayKey = getDateDayKey(date);
+    if (!dayKey) {
+      return res.status(400).json({ success: false, message: 'Invalid appointment date' });
+    }
+
+    const schedule = buildAvailabilitySchedule({
+      availability: doctor.availability || [],
+      availabilitySchedule: doctor.availabilitySchedule || null,
+      opdTimings: doctor.opdTimings || '',
+    });
+
+    const configuredSlots = schedule[dayKey] || [];
+    const rows = await fetchRows(
+      `SELECT time_slot
+       FROM appointments
+       WHERE doctor_id = ? AND appointment_date = ? AND status <> 'Cancelled'`,
+      [req.params.id, date]
+    );
+    const bookedSlots = rows.map((row) => row.time_slot);
+    const availableSlots = configuredSlots.filter((slot) => !bookedSlots.includes(slot));
+
+    res.json({
+      success: true,
+      date,
+      day: dayKey,
+      isAvailable: configuredSlots.length > 0,
+      slots: configuredSlots,
+      bookedSlots,
+      availableSlots,
+      opdTimings: doctor.opdTimings || '',
+    });
   } catch (error) {
     next(error);
   }
@@ -237,7 +286,7 @@ router.patch('/:id', protect, async (req, res, next) => {
 
     await pool.execute(
       `UPDATE doctors
-       SET name = ?, phone = ?, qualification = ?, speciality = ?, experience_years = ?, clinic_address = ?, google_maps_link = ?, city = ?, area = ?, consultation_fee = ?, consultation_type = ?, bio = ?, opd_timings = ?, rating = ?, is_approved = ?, is_subscribed = ?, subscription_paid_at = ?, subscription_ends_at = ?, hospital_name = ?
+       SET name = ?, phone = ?, qualification = ?, speciality = ?, experience_years = ?, clinic_address = ?, google_maps_link = ?, availability_schedule = ?, city = ?, area = ?, consultation_fee = ?, consultation_type = ?, bio = ?, opd_timings = ?, rating = ?, is_approved = ?, is_subscribed = ?, subscription_paid_at = ?, subscription_ends_at = ?, hospital_name = ?
        WHERE id = ?`,
       [
         updates.name ?? doctor.name,
@@ -247,6 +296,11 @@ router.patch('/:id', protect, async (req, res, next) => {
         updates.experience ?? doctor.experience,
         updates.clinicAddress ?? doctor.clinicAddress,
         updates.googleMapsLink ?? doctor.googleMapsLink ?? null,
+        updates.availabilitySchedule === undefined
+          ? JSON.stringify(doctor.availabilitySchedule || {})
+          : typeof updates.availabilitySchedule === 'string'
+            ? updates.availabilitySchedule
+            : JSON.stringify(updates.availabilitySchedule || {}),
         updates.location ?? doctor.location,
         updates.area ?? doctor.area,
         updates.consultationFee ?? doctor.consultationFee,

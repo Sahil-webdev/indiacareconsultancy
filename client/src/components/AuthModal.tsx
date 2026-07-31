@@ -1,17 +1,18 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Heart, LogIn, UserPlus, Mail, Lock, Eye, EyeOff, Phone, User,
-  MapPin, ChevronDown, AlertCircle, CheckCircle2, ArrowRight, ShieldCheck,
-  BadgeCheck, ExternalLink,
+  X, LogIn, UserPlus, Mail, Lock, Eye, EyeOff, Phone, User,
+  MapPin, ChevronDown, AlertCircle, CheckCircle2, ArrowRight,
 } from 'lucide-react';
 import { usePatientAuth, MOCK_PATIENTS, MOCK_PASSWORD, PatientProfile } from '@/lib/patientAuth';
 
 const CITIES = ['Delhi', 'Mumbai', 'Bengaluru', 'Hyderabad', 'Chennai', 'Kolkata', 'Gurugram', 'Pune', 'Ahmedabad', 'Jaipur', 'Other'];
+const AUTH_REDIRECT_KEY = 'icc-patient-auth-redirect';
 
 /* ─────────────────────────────────────────
    AuthModal
@@ -33,7 +34,16 @@ export default function AuthModal() {
   const handleLoginSuccess = (p: PatientProfile) => {
     login(p);
     closeAuthModal();
-    router.push('/my-health');
+    const redirectTarget =
+      typeof window !== 'undefined'
+        ? window.sessionStorage.getItem(AUTH_REDIRECT_KEY)
+        : null;
+
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(AUTH_REDIRECT_KEY);
+    }
+
+    router.push(redirectTarget || '/my-health');
   };
 
   return (
@@ -75,9 +85,15 @@ export default function AuthModal() {
               {/* Header */}
               <div className="px-6 pt-7 pb-5 flex-shrink-0">
                 {/* Logo */}
-                <div className="flex items-center gap-2 mb-5">
-                  <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shadow-md">
-                    <Heart className="w-4 h-4 fill-white text-white" />
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="relative w-11 h-11 rounded-2xl overflow-hidden border border-primary-green/15 shadow-md bg-white">
+                    <Image
+                      src="/logo.png"
+                      alt="India Care Consultancy"
+                      fill
+                      sizes="44px"
+                      className="object-contain p-1.5"
+                    />
                   </div>
                   <div>
                     <span className="font-extrabold text-sm text-dark-navy tracking-wider block leading-tight">INDIA CARE</span>
@@ -145,7 +161,7 @@ function LoginForm({ onSuccess, onSwitchTab }: { onSuccess: (p: PatientProfile) 
       if (p && password === MOCK_PASSWORD) {
         onSuccess(p);
       } else {
-        setError('Invalid credentials. Demo: patient@indiacare.com / password123');
+        setError('Invalid credentials. Please check your email/mobile and password.');
       }
     }, 900);
   };
@@ -166,7 +182,7 @@ function LoginForm({ onSuccess, onSwitchTab }: { onSuccess: (p: PatientProfile) 
       <Field label="Email or Mobile" icon={Mail}>
         <input
           type="text" value={identifier} onChange={e => { setIdentifier(e.target.value); setError(''); }}
-          placeholder="patient@indiacare.com"
+          placeholder="Enter your email or mobile number"
           className="w-full bg-slate-50 border border-slate-200 pl-9 pr-4 py-2.5 rounded-xl text-sm text-dark-navy placeholder-slate-400 focus:outline-none focus:border-primary-green focus:ring-2 focus:ring-primary-green/10 transition-all"
         />
       </Field>
@@ -191,29 +207,12 @@ function LoginForm({ onSuccess, onSwitchTab }: { onSuccess: (p: PatientProfile) 
         {loading ? <><div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Signing in…</> : <><LogIn className="w-4 h-4" /> Sign In</>}
       </button>
 
-      {/* Demo hint */}
-      <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Demo</p>
-        <p className="text-[11px] text-text-grey">
-          Email: <span className="font-mono text-slate-700 font-bold">patient@indiacare.com</span><br />
-          Password: <span className="font-mono text-slate-700 font-bold">password123</span>
-        </p>
-      </div>
-
       <p className="text-center text-xs text-text-grey">
         New patient?{' '}
         <button type="button" onClick={onSwitchTab} className="text-primary-green font-bold hover:text-dark-green transition-colors">
           Create account →
         </button>
       </p>
-
-      <div className="flex items-center justify-center gap-2 text-[11px] text-text-grey pt-1">
-        <span>Doctor / Hospital?</span>
-        <a href={`${process.env.NEXT_PUBLIC_PANEL_URL}/login`} target="_blank" rel="noopener noreferrer"
-          className="font-bold text-primary-green hover:text-dark-green flex items-center gap-0.5">
-          Panel Access <ExternalLink className="w-3 h-3" />
-        </a>
-      </div>
     </form>
   );
 }

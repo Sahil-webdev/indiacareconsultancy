@@ -1,23 +1,77 @@
 'use client';
 
-import React, { useState, useMemo, Suspense } from 'react';
+import React, { useEffect, useMemo, Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
+  BadgeCheck,
   Building2,
   Calendar,
+  Globe2,
+  Megaphone,
   Layers,
   ShieldCheck,
   Users,
   Image,
   DollarSign,
   Plus,
+  TimerReset,
   Trash,
   PhoneCall,
   Check,
   X
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { panelApi } from '@/lib/api';
 import { mockDB } from '@/lib/mockData';
+
+interface SpotlightStatus {
+  id: string;
+  tagline: string;
+  startsAt: string;
+  endsAt: string;
+  isActive: boolean;
+  paymentStatus: string;
+}
+
+interface SpotlightResponse {
+  success: true;
+  fee: {
+    amount: number;
+    durationDays: number;
+  };
+  spotlight: SpotlightStatus | null;
+}
+
+const currencyFormatter = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 0,
+});
+
+const dateFormatter = new Intl.DateTimeFormat('en-IN', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+});
+
+function formatCurrency(amount: number) {
+  return currencyFormatter.format(Number(amount || 0));
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return 'Not available';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return dateFormatter.format(parsed);
+}
+
+function getDaysRemaining(value?: string | null) {
+  if (!value) return 0;
+  const endsAt = new Date(value);
+  const diff = endsAt.getTime() - Date.now();
+  if (diff <= 0) return 0;
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
 
 function HospitalPanelContent() {
   const searchParams = useSearchParams();
@@ -38,6 +92,30 @@ function HospitalPanelContent() {
   }, [hospital]);
 
   const [localAppointments, setLocalAppointments] = useState(appointments);
+  const [spotlightLoading, setSpotlightLoading] = useState(true);
+  const [spotlight, setSpotlight] = useState<SpotlightResponse | null>(null);
+  const [spotlightTagline, setSpotlightTagline] = useState('');
+  const [promoteSubmitting, setPromoteSubmitting] = useState(false);
+
+  const activeSpotlight = spotlight?.spotlight || null;
+  const spotlightDaysRemaining = getDaysRemaining(activeSpotlight?.endsAt);
+
+  const loadSpotlight = async () => {
+    try {
+      setSpotlightLoading(true);
+      const response = await panelApi<SpotlightResponse>('/api/promote/current');
+      setSpotlight(response);
+      setSpotlightTagline(response.spotlight?.tagline || '');
+    } catch {
+      setSpotlight(null);
+    } finally {
+      setSpotlightLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSpotlight();
+  }, []);
 
   const handleApprove = (aptId: string) => {
     mockDB.updateAppointmentStatus(aptId, 'Confirmed', 'Approved by Hospital.');
@@ -53,6 +131,32 @@ function HospitalPanelContent() {
       prev.map(a => a.id === aptId ? { ...a, status: 'Cancelled' } : a)
     );
     toast('info', 'Referral Declined', 'The admission referral was declined.');
+  };
+
+  const handlePromoteProfile = async () => {
+    if (!spotlightTagline.trim()) {
+      toast('info', 'Tagline Required', 'Promote profile se pehle hospital spotlight tagline likhni hogi.');
+      return;
+    }
+
+    try {
+      setPromoteSubmitting(true);
+      await panelApi('/api/promote', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'promote',
+          tagline: spotlightTagline.trim(),
+          paymentMethod: 'UPI',
+        }),
+      });
+      await loadSpotlight();
+      toast('success', 'Promotion Activated', 'Hospital profile ab homepage ke Top Tier Health Care Experts section me live hai.');
+    } catch (submitError) {
+      const message = submitError instanceof Error ? submitError.message : 'Promotion activate nahi ho paaya.';
+      toast('error', 'Promotion Failed', message);
+    } finally {
+      setPromoteSubmitting(false);
+    }
   };
 
   return (
@@ -291,6 +395,113 @@ function HospitalPanelContent() {
                 <span className="text-sm font-bold text-primary-green">Premium Vetted</span>
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'promote' && (
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-1">
+              <h2 className="font-extrabold text-lg text-dark-navy">Promote Profile</h2>
+              <p className="text-xs text-text-grey">
+                Payment ke baad aapka hospital homepage ke <span className="font-bold text-dark-navy">Top Tier Health Care Experts</span> section me featured dikhega.
+              </p>
+            </div>
+
+            {spotlightLoading ? (
+              <div className="p-5 bg-slate-50 border border-slate-150 rounded-2xl text-xs text-text-grey">
+                Checking live spotlight status...
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                  <div className="bg-slate-50 border border-slate-150 rounded-2xl p-5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Homepage Visibility</p>
+                    <p className="text-base font-extrabold text-dark-navy mt-2">
+                      {activeSpotlight?.isActive ? 'Live on Homepage' : 'Not Live Yet'}
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-150 rounded-2xl p-5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Promotion Fee</p>
+                    <p className="text-base font-extrabold text-dark-navy mt-2">{formatCurrency(spotlight?.fee.amount || 0)}</p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-150 rounded-2xl p-5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Duration</p>
+                    <p className="text-base font-extrabold text-dark-navy mt-2">{spotlight?.fee.durationDays || 30} Days</p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-150 rounded-2xl p-5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Days Remaining</p>
+                    <p className="text-base font-extrabold text-dark-navy mt-2">
+                      {activeSpotlight?.isActive ? `${spotlightDaysRemaining} days left` : '0 days'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className={`rounded-3xl border p-6 ${activeSpotlight?.isActive ? 'bg-green-50 border-green-200/60' : 'bg-slate-50 border-slate-150'}`}>
+                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-3">
+                        <BadgeCheck className={`w-5 h-5 ${activeSpotlight?.isActive ? 'text-primary-green' : 'text-slate-400'}`} />
+                        <span className={`text-sm font-extrabold ${activeSpotlight?.isActive ? 'text-primary-green' : 'text-dark-navy'}`}>
+                          {activeSpotlight?.isActive ? 'Promotion Confirmed' : 'Promotion Inactive'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-dark-navy leading-relaxed">
+                        {activeSpotlight?.isActive
+                          ? 'Aapka hospital profile successfully homepage par visible hai aur patients ise featured spotlight section me dekh sakte hain.'
+                          : 'Abhi aapka hospital profile homepage spotlight section me live nahi hai. Promote karne ke baad ye featured section me turant show hoga.'}
+                      </p>
+                      {activeSpotlight?.isActive && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+                          <div className="bg-white rounded-2xl border border-green-100 px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Started</p>
+                            <p className="text-sm font-bold text-dark-navy mt-1">{formatDate(activeSpotlight.startsAt)}</p>
+                          </div>
+                          <div className="bg-white rounded-2xl border border-green-100 px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Ends On</p>
+                            <p className="text-sm font-bold text-dark-navy mt-1">{formatDate(activeSpotlight.endsAt)}</p>
+                          </div>
+                          <div className="bg-white rounded-2xl border border-green-100 px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Status</p>
+                            <p className="text-sm font-bold text-primary-green mt-1">{activeSpotlight.paymentStatus || 'Paid'}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="lg:w-[320px] bg-white border border-slate-150 rounded-3xl p-5 shadow-sm">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Megaphone className="w-4 h-4 text-primary-green" />
+                        <h3 className="text-sm font-extrabold text-dark-navy">Homepage Spotlight</h3>
+                      </div>
+                      <textarea
+                        value={spotlightTagline}
+                        onChange={(event) => setSpotlightTagline(event.target.value)}
+                        rows={4}
+                        placeholder="Add a strong hospital spotlight tagline..."
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-dark-navy placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-green/20 focus:border-primary-green"
+                      />
+                      <button
+                        onClick={handlePromoteProfile}
+                        disabled={promoteSubmitting}
+                        className="w-full mt-4 gradient-medical text-white font-bold py-3 rounded-2xl shadow-sm disabled:opacity-60"
+                      >
+                        {promoteSubmitting ? 'Activating Promotion...' : activeSpotlight?.isActive ? 'Renew Spotlight for 1 Month' : 'Pay & Activate Spotlight'}
+                      </button>
+                      <div className="mt-4 flex items-start gap-2 text-xs text-text-grey">
+                        <Globe2 className="w-4 h-4 text-primary-green flex-shrink-0 mt-0.5" />
+                        <span>Payment confirm hote hi hospital profile homepage spotlight section me live ho jayega aur countdown yahin update hota rahega.</span>
+                      </div>
+                      {activeSpotlight?.isActive && (
+                        <div className="mt-3 flex items-start gap-2 text-xs text-primary-green">
+                          <TimerReset className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                          <span>{spotlightDaysRemaining} din baad ye promotion expire ho jayega.</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 

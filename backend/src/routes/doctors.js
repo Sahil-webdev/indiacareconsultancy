@@ -100,6 +100,190 @@ router.get('/me/profile', protect, async (req, res, next) => {
   }
 });
 
+router.get('/me/earnings', protect, async (req, res, next) => {
+  try {
+    if (req.user.role !== 'doctor') {
+      return res.status(403).json({ success: false, message: 'Forbidden: Doctor access required' });
+    }
+
+    const doctorRow = await fetchOne('SELECT id FROM doctors WHERE user_id = ? LIMIT 1', [req.user.id]);
+    if (!doctorRow) {
+      return res.status(404).json({ success: false, message: 'Doctor profile not found' });
+    }
+
+    const doctor = await getDoctorById(doctorRow.id);
+    const consultationFee = Number(doctor?.consultationFee || 0);
+
+    const appointmentRows = await fetchRows(
+      `SELECT
+         a.*,
+         d.name AS doctor_name,
+         d.speciality AS doctor_speciality,
+         d.phone AS doctor_phone,
+         d.email AS doctor_email,
+         d.user_id AS doctor_user_id,
+         h.name AS hospital_name,
+         h.phone AS hospital_phone,
+         h.email AS hospital_email,
+         h.user_id AS hospital_user_id
+       FROM appointments a
+       LEFT JOIN doctors d ON d.id = a.doctor_id
+       LEFT JOIN hospitals h ON h.id = a.hospital_id
+       WHERE a.doctor_id = ?
+       ORDER BY a.appointment_date DESC, a.time_slot DESC, a.created_at DESC`,
+      [doctorRow.id]
+    );
+
+    const paymentRows = await fetchRows(
+      `SELECT
+         id,
+         payment_type,
+         entity_type,
+         entity_id,
+         amount,
+         currency,
+         status,
+         payment_method,
+         transaction_ref,
+         invoice_no,
+         paid_at,
+         created_at
+       FROM payments
+       WHERE entity_type = 'doctor' AND entity_id = ?
+       ORDER BY COALESCE(paid_at, created_at) DESC, id DESC`,
+      [doctorRow.id]
+    );
+
+    const appointments = appointmentRows.map((row) => ({
+      id: String(row.id),
+      patientName: row.patient_name,
+      patientPhone: row.patient_phone,
+      patientEmail: row.patient_email || '',
+      doctorId: row.doctor_id ? String(row.doctor_id) : null,
+      doctorName: row.doctor_name || '',
+      doctorSpeciality: row.doctor_speciality || '',
+      hospitalId: row.hospital_id ? String(row.hospital_id) : null,
+      hospitalName: row.hospital_name || '',
+      appointmentDate: row.appointment_date,
+      timeSlot: row.time_slot,
+      concern: row.concern || '',
+      status: row.status,
+      workflowStatus: row.workflow_status || row.status,
+      adminNote: row.admin_note || '',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at || row.created_at,
+      earningAmount: consultationFee,
+    }));
+
+    const currentDate = new Date();
+    const currentMonthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+    const monthFormatter = new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric' });
+
+    const isCompletedAppointment = (appointment) => {
+      const workflowStatus = String(appointment.workflowStatus || appointment.status || '').toLowerCase();
+      const status = String(appointment.status || '').toLowerCase();
+      return workflowStatus === 'completed' || status === 'completed';
+    };
+
+    const isConfirmedPipelineAppointment = (appointment) => {
+      const workflowStatus = String(appointment.workflowStatus || appointment.status || '').toLowerCase();
+      const status = String(appointment.status || '').toLowerCase();
+      return ['confirmed', 'rescheduled', 'awaiting patient confirmation', 'awaiting doctor confirmation', 'requested', 'pending'].includes(workflowStatus)
+        || ['confirmed', 'pending'].includes(status);
+    };
+
+    const monthlyMap = new Map();
+    let totalEarnings = 0;
+    let thisMonthEarnings = 0;
+    let pendingEarnings = 0;
+    let completedBookings = 0;
+    let confirmedBookings = 0;
+    let cancelledBookings = 0;
+    let upcomingBookings = 0;
+
+    appointments.forEach((appointment) => {
+      const appointmentDate = new Date(appointment.appointmentDate);
+      const appointmentMonthKey = `${appointmentDate.getFullYear()}-${String(appointmentDate.getMonth() + 1).padStart(2, '0')}`;
+      const appointmentAmount = Number(appointment.earningAmount || 0);
+
+      if (isCompletedAppointment(appointment)) {
+        completedBookings += 1;
+        totalEarnings += appointmentAmount;
+        if (appointmentMonthKey === currentMonthKey) {
+          thisMonthEarnings += appointmentAmount;
+        }
+
+        const monthBucket = monthlyMap.get(appointmentMonthKey) || {
+          monthKey: appointmentMonthKey,
+          label: monthFormatter.format(appointmentDate),
+          earnings: 0,
+          consultations: 0,
+        };
+        monthBucket.earnings += appointmentAmount;
+        monthBucket.consultations += 1;
+        monthlyMap.set(appointmentMonthKey, monthBucket);
+      } else if (String(appointment.status || '').toLowerCase() === 'cancelled' || String(appointment.workflowStatus || '').toLowerCase().includes('cancelled')) {
+        cancelledBookings += 1;
+      }
+
+      if (isConfirmedPipelineAppointment(appointment)) {
+        confirmedBookings += 1;
+        pendingEarnings += appointmentAmount;
+      }
+
+      if (appointmentDate >= currentDate && isConfirmedPipelineAppointment(appointment)) {
+        upcomingBookings += 1;
+      }
+    });
+
+    const monthlyEarnings = Array.from(monthlyMap.values())
+      .sort((a, b) => b.monthKey.localeCompare(a.monthKey))
+      .slice(0, 6);
+
+    const expensesPaid = paymentRows
+      .filter((payment) => payment.status === 'Paid')
+      .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+
+    const paymentHistory = paymentRows.map((payment) => ({
+      id: String(payment.id),
+      paymentType: payment.payment_type,
+      entityType: payment.entity_type,
+      entityId: payment.entity_id ? String(payment.entity_id) : null,
+      amount: Number(payment.amount || 0),
+      currency: payment.currency || 'INR',
+      status: payment.status,
+      paymentMethod: payment.payment_method || '',
+      transactionRef: payment.transaction_ref || '',
+      invoiceNumber: payment.invoice_no || '',
+      paidAt: payment.paid_at,
+      createdAt: payment.created_at,
+    }));
+
+    res.json({
+      success: true,
+      doctor,
+      appointments,
+      summary: {
+        consultationFee,
+        totalBookings: appointments.length,
+        completedBookings,
+        confirmedBookings,
+        cancelledBookings,
+        upcomingBookings,
+        totalEarnings,
+        thisMonthEarnings,
+        pendingEarnings,
+        totalExpenses: expensesPaid,
+        netEarnings: totalEarnings - expensesPaid,
+      },
+      monthlyEarnings,
+      paymentHistory,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/:id/availability', async (req, res, next) => {
   try {
     const doctor = await getDoctorById(req.params.id);

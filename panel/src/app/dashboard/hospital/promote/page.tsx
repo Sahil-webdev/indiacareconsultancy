@@ -180,7 +180,7 @@ export default function HospitalPromotePage() {
           style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'var(--bg-surface)' }}>
           <div>
             <h1 className="font-extrabold text-lg" style={{ color: 'var(--text-primary)' }}>Homepage Spotlight</h1>
-            <p className="text-[11px]" style={{ color: '#64748B' }}>Your hospital is featured on the ICC website homepage</p>
+            <p className="text-[11px]" style={{ color: '#64748B' }}>Your hospital profile is confirmed and visible in Top Tier Health Care Experts</p>
           </div>
           <span className="flex items-center gap-1.5 text-xs font-extrabold px-3 py-1.5 rounded-full"
             style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>
@@ -190,6 +190,21 @@ export default function HospitalPromotePage() {
         <main className="flex-1 overflow-y-auto panel-scroll p-6">
           <div className="max-w-2xl mx-auto space-y-5">
             <HeroPreview tagline={activePromo.tagline} active hospital={hospital} />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {[
+                { label: 'Homepage Status', value: 'Live on Homepage', icon: Globe },
+                { label: 'Payment Status', value: 'Paid', icon: BadgeCheck },
+                { label: 'Days Remaining', value: `${activePromo.daysLeft} days`, icon: CalendarDays },
+              ].map((item, i) => (
+                <motion.div key={item.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }} className="panel-card p-4">
+                  <div className="w-9 h-9 rounded-xl bg-violet-500/12 flex items-center justify-center mb-2">
+                    <item.icon className="w-4 h-4 text-violet-400" />
+                  </div>
+                  <p className="text-[10px]" style={{ color: '#64748B' }}>{item.label}</p>
+                  <p className="text-sm font-extrabold mt-1" style={{ color: 'var(--text-primary)' }}>{item.value}</p>
+                </motion.div>
+              ))}
+            </div>
             <div className="panel-card p-5">
               <div className="flex items-center justify-between mb-3">
                 <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Spotlight Duration</p>

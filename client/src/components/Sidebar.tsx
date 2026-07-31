@@ -21,7 +21,8 @@ import {
   Star,
   Layers,
   MessageSquare,
-  HelpCircle
+  HelpCircle,
+  Megaphone
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 
@@ -63,6 +64,7 @@ export default function Sidebar() {
       { name: 'Patient Reports', path: '/dashboard/doctor?tab=reports', icon: <FileText className="w-4.5 h-4.5" /> },
       { name: 'Reviews Feedback', path: '/dashboard/doctor?tab=reviews', icon: <Star className="w-4 h-4" /> },
       { name: 'Subscription Plan', path: '/dashboard/doctor?tab=subscription', icon: <ShieldCheck className="w-4 h-4" /> },
+      { name: 'Promote Profile', path: '/dashboard/doctor?tab=promote', icon: <Megaphone className="w-4 h-4" /> },
       { name: 'Payment History', path: '/dashboard/doctor?tab=payments', icon: <DollarSign className="w-4 h-4" /> },
     ],
     hospital: [
@@ -73,6 +75,7 @@ export default function Sidebar() {
       { name: 'Linked Doctors', path: '/dashboard/hospital?tab=doctors', icon: <Users className="w-4 h-4" /> },
       { name: 'OPD Requests', path: '/dashboard/hospital?tab=requests', icon: <Calendar className="w-4 h-4" /> },
       { name: 'Subscription Plan', path: '/dashboard/hospital?tab=subscription', icon: <Sliders className="w-4 h-4" /> },
+      { name: 'Promote Profile', path: '/dashboard/hospital?tab=promote', icon: <Megaphone className="w-4 h-4" /> },
       { name: 'Billing History', path: '/dashboard/hospital?tab=payments', icon: <DollarSign className="w-4 h-4" /> },
     ],
     consultant: [

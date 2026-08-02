@@ -52,6 +52,37 @@ export default function RegisterPage() {
 
   const subscriptionFee = role === 'doctor' ? 999 : 1999;
 
+  // Auto-format doctor name: capitalize words & ensure Dr. prefix
+  const formatDoctorName = (raw: string): string => {
+    if (!raw) return '';
+    // Capitalize each word
+    const capitalized = raw.replace(/\b(\w)/g, (ch) => ch.toUpperCase());
+    // If user hasn't started with Dr. or DR., auto-prepend it
+    if (!/^Dr\.\s*/i.test(capitalized.trimStart())) {
+      return `Dr. ${capitalized.trimStart()}`;
+    }
+    // Normalize so prefix is always exactly "Dr. "
+    return capitalized.replace(/^Dr\.?\s*/i, 'Dr. ');
+  };
+
+  const handleDoctorNameChange = (raw: string) => {
+    // Allow user to freely type; we only format on blur to avoid cursor issues
+    // But we DO capitalize mid-type and ensure prefix once they start the name part
+    const words = raw.split(' ');
+    const formatted = words
+      .map((w, i) => {
+        // Keep "Dr." exactly if it's the first token
+        if (i === 0 && /^dr\.?$/i.test(w)) return 'Dr.';
+        return w.charAt(0).toUpperCase() + w.slice(1);
+      })
+      .join(' ');
+    setDocForm({ ...docForm, name: formatted });
+  };
+
+  const handleDoctorNameBlur = () => {
+    setDocForm((prev) => ({ ...prev, name: formatDoctorName(prev.name) }));
+  };
+
   const copyUpiId = () => {
     navigator.clipboard.writeText(OFFICIAL_UPI_ID);
     setCopiedUpi(true);
@@ -432,7 +463,11 @@ export default function RegisterPage() {
                             <input
                               type="text"
                               value={role === 'doctor' ? docForm.name : hospForm.name}
-                              onChange={e => role === 'doctor' ? setDocForm({ ...docForm, name: e.target.value }) : setHospForm({ ...hospForm, name: e.target.value })}
+                              onChange={e => role === 'doctor'
+                                ? handleDoctorNameChange(e.target.value)
+                                : setHospForm({ ...hospForm, name: e.target.value })
+                              }
+                              onBlur={() => role === 'doctor' && handleDoctorNameBlur()}
                               placeholder={role === 'doctor' ? 'Dr. Ramesh Kumar' : 'Apollo Spectra Hospital'}
                               className="w-full pl-10 pr-4 py-3 rounded-2xl text-xs text-white placeholder-slate-600 bg-white/[0.04] border border-white/[0.08] focus:outline-none focus:border-emerald-500/50 transition-all"
                             />

@@ -123,7 +123,7 @@ router.post('/register-doctor', async (req, res, next) => {
     });
 
     // Insert into doctors table (is_approved = 0, is_subscribed = 0)
-    await connection.execute(
+    const [docRes] = await connection.execute(
       `INSERT INTO doctors
         (user_id, name, email, phone, gender, photo, registration_no, qualification, speciality, experience_years, hospital_name, clinic_address, city, area, consultation_fee, consultation_type, opd_timings, bio, rating, is_approved, is_subscribed)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)`,
@@ -150,8 +150,31 @@ router.post('/register-doctor', async (req, res, next) => {
       ]
     );
 
+    const doctorId = docRes.insertId;
+
+    if (body.utrNumber) {
+      await connection.execute(
+        `INSERT INTO payments
+          (user_id, payment_type, entity_type, entity_id, amount, status, payment_method, transaction_ref, screenshot_url, created_at)
+         VALUES (?, 'subscription', 'doctor', ?, ?, 'Pending', 'UPI', ?, ?, NOW())`,
+        [userId, doctorId, body.subscriptionFee || 999, body.utrNumber.trim(), body.screenshotUrl || null]
+      );
+    }
+
     await connection.commit();
-    res.status(201).json({ success: true, message: 'Doctor registered successfully. Awaiting super admin approval.' });
+
+    const { createSuperAdminNotification } = require('../services/notifications');
+    await createSuperAdminNotification({
+      title: 'New Doctor Partner Registration & Subscription',
+      message: `${body.name} registered as Doctor partner and submitted UTR: ${body.utrNumber || 'N/A'}.`,
+      category: 'subscription',
+      entityType: 'doctor',
+      entityId: doctorId,
+      actionUrl: '/dashboard/super-admin/verification/subscription-approvals',
+      metadata: { doctorName: body.name, utrNumber: body.utrNumber },
+    });
+
+    res.status(201).json({ success: true, message: 'Doctor registered successfully. Payment & Registration sent for approval.' });
   } catch (error) {
     await connection.rollback();
     if (error.statusCode) {
@@ -183,7 +206,7 @@ router.post('/register-hospital', async (req, res, next) => {
     });
 
     // Insert into hospitals table (is_approved = 0, is_subscribed = 0)
-    await connection.execute(
+    const [hospRes] = await connection.execute(
       `INSERT INTO hospitals
         (user_id, name, email, phone, emergency_contact, website, image, registration_no, hospital_type, total_beds, address, city, opd_timings, about, rating, is_approved, is_subscribed)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)`,
@@ -206,8 +229,31 @@ router.post('/register-hospital', async (req, res, next) => {
       ]
     );
 
+    const hospitalId = hospRes.insertId;
+
+    if (body.utrNumber) {
+      await connection.execute(
+        `INSERT INTO payments
+          (user_id, payment_type, entity_type, entity_id, amount, status, payment_method, transaction_ref, screenshot_url, created_at)
+         VALUES (?, 'subscription', 'hospital', ?, ?, 'Pending', 'UPI', ?, ?, NOW())`,
+        [userId, hospitalId, body.subscriptionFee || 1999, body.utrNumber.trim(), body.screenshotUrl || null]
+      );
+    }
+
     await connection.commit();
-    res.status(201).json({ success: true, message: 'Hospital registered successfully. Awaiting super admin approval.' });
+
+    const { createSuperAdminNotification } = require('../services/notifications');
+    await createSuperAdminNotification({
+      title: 'New Hospital Partner Registration & Subscription',
+      message: `${body.name} registered as Hospital partner and submitted UTR: ${body.utrNumber || 'N/A'}.`,
+      category: 'subscription',
+      entityType: 'hospital',
+      entityId: hospitalId,
+      actionUrl: '/dashboard/super-admin/verification/subscription-approvals',
+      metadata: { hospitalName: body.name, utrNumber: body.utrNumber },
+    });
+
+    res.status(201).json({ success: true, message: 'Hospital registered successfully. Payment & Registration sent for approval.' });
   } catch (error) {
     await connection.rollback();
     if (error.statusCode) {

@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Stethoscope, Search, Eye, Star, CheckCircle2, Clock, Plus, MapPin, Phone,
-  User, Mail, Lock, FileText, Briefcase, X, Loader2, AlertCircle, Trash2, Sparkles, Check
+  Stethoscope, Search, Eye, Star, CheckCircle2, Clock, Plus, Phone,
+  User, Mail, Lock, X, Loader2, AlertCircle, Trash2
 } from 'lucide-react';
 import { panelApi } from '@/lib/api';
 
@@ -24,11 +24,11 @@ interface DoctorItem {
 }
 
 const statusBadge = (s: string) => ({
-  'Active': 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
-  'On Leave': 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
-  'Pending Verification': 'bg-sky-500/15 text-sky-400 border border-sky-500/30',
+  'Active': 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30',
+  'On Leave': 'bg-amber-500/15 text-amber-500 border border-amber-500/30',
+  'Pending Verification': 'bg-sky-500/15 text-sky-500 border border-sky-500/30',
   'Inactive': 'bg-slate-500/15 text-slate-400 border border-slate-500/30',
-}[s] || 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30');
+}[s] || 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30');
 
 export default function HospitalDoctorsPage() {
   const [doctors, setDoctors] = useState<DoctorItem[]>([]);
@@ -162,22 +162,23 @@ export default function HospitalDoctorsPage() {
   );
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-slate-950 text-slate-100">
+    <div className="flex-1 flex flex-col overflow-hidden min-w-0" style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}>
       
       {/* ── HEADER ── */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-900/90 flex-shrink-0">
+      <header className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
         <div>
-          <h1 className="font-black text-xl tracking-tight text-white flex items-center gap-2">
-            <Stethoscope className="w-5 h-5 text-emerald-400" /> Our Doctors
+          <h1 className="font-black text-xl tracking-tight flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Stethoscope className="w-5 h-5" style={{ color: '#25B89A' }} /> Our Doctors
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">Specialists &amp; doctors affiliated with your hospital</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Specialists &amp; doctors affiliated with your hospital</p>
         </div>
         <button
           type="button"
           onClick={() => { setError(''); setAddModalOpen(true); }}
-          className="flex items-center gap-2 text-xs font-black text-slate-950 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+          className="flex items-center gap-2 text-xs font-black text-white px-4 py-2.5 rounded-xl shadow-lg transition-all cursor-pointer"
+          style={{ background: 'linear-gradient(135deg, #127A6A 0%, #075E52 100%)' }}
         >
-          <Plus className="w-4 h-4 text-slate-950" /> Add Doctor
+          <Plus className="w-4 h-4 text-white" /> Add Doctor
         </button>
       </header>
 
@@ -191,13 +192,14 @@ export default function HospitalDoctorsPage() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold"
+              className="flex items-center justify-between p-3.5 rounded-xl text-xs font-semibold"
+              style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', color: '#22c55e' }}
             >
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                 {success}
               </div>
-              <button onClick={() => setSuccess('')} className="text-slate-400 hover:text-white">
+              <button onClick={() => setSuccess('')} className="hover:opacity-70">
                 <X className="w-4 h-4" />
               </button>
             </motion.div>
@@ -211,13 +213,14 @@ export default function HospitalDoctorsPage() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="flex items-center justify-between p-3.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-semibold"
+              className="flex items-center justify-between p-3.5 rounded-xl text-xs font-semibold"
+              style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}
             >
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
                 {error}
               </div>
-              <button onClick={() => setError('')} className="text-slate-400 hover:text-white">
+              <button onClick={() => setError('')} className="hover:opacity-70">
                 <X className="w-4 h-4" />
               </button>
             </motion.div>
@@ -227,89 +230,90 @@ export default function HospitalDoctorsPage() {
         {/* ── STATS CARDS ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { icon: Stethoscope,  label: 'Total Doctors',  value: doctors.length, color: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' },
-            { icon: CheckCircle2, label: 'Active Status',  value: doctors.filter(d => d.status === 'Active').length, color: 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' },
-            { icon: Clock,        label: 'Pending Verification', value: doctors.filter(d => d.status !== 'Active').length, color: 'bg-amber-500/20 text-amber-400 border border-amber-500/30' },
-            { icon: Star,         label: 'Avg Rating',     value: doctors.length > 0 ? (doctors.reduce((a, b) => a + (b.rating || 4.8), 0) / doctors.length).toFixed(1) : '4.8', color: 'bg-violet-500/20 text-violet-400 border border-violet-500/30' },
+            { icon: Stethoscope,  label: 'Total Doctors',  value: doctors.length, color: 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/20' },
+            { icon: CheckCircle2, label: 'Active Status',  value: doctors.filter(d => d.status === 'Active').length, color: 'bg-indigo-500/15 text-indigo-500 border border-indigo-500/20' },
+            { icon: Clock,        label: 'Pending Verification', value: doctors.filter(d => d.status !== 'Active').length, color: 'bg-amber-500/15 text-amber-500 border border-amber-500/20' },
+            { icon: Star,         label: 'Avg Rating',     value: doctors.length > 0 ? (doctors.reduce((a, b) => a + (b.rating || 4.8), 0) / doctors.length).toFixed(1) : '4.8', color: 'bg-violet-500/15 text-violet-500 border border-violet-500/20' },
           ].map((s, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 flex items-center gap-3.5"
+              className="panel-card p-4 flex items-center gap-3.5"
             >
               <div className={`w-10 h-10 rounded-xl ${s.color} flex items-center justify-center`}>
                 <s.icon className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xl font-black text-white">{s.value}</p>
-                <p className="text-[11px] text-slate-400 font-medium">{s.label}</p>
+                <p className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>{s.value}</p>
+                <p className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>{s.label}</p>
               </div>
             </motion.div>
           ))}
         </div>
 
         {/* ── SEARCH & DOCTORS TABLE ── */}
-        <div className="bg-slate-900/90 border border-white/10 rounded-2xl overflow-hidden shadow-xl">
-          <div className="flex items-center justify-between p-4 border-b border-white/10 gap-3">
+        <div className="panel-card overflow-hidden shadow-sm">
+          <div className="flex items-center justify-between p-4 border-b gap-3" style={{ borderColor: 'var(--border-color)' }}>
             <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
               <input
                 type="text"
                 placeholder="Search doctors by name or speciality…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-xl text-xs text-white bg-slate-950 border border-white/10 focus:outline-none focus:border-emerald-500/50"
+                className="w-full pl-10 pr-4 py-2 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/40 transition-all"
+                style={{ background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
               />
             </div>
-            <span className="text-xs text-slate-400 font-semibold">{filtered.length} doctors listed</span>
+            <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{filtered.length} doctors listed</span>
           </div>
 
           <div className="overflow-x-auto">
             {loading ? (
-              <div className="p-12 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
-                <Loader2 className="w-6 h-6 animate-spin text-emerald-400" /> Loading affiliated doctors…
+              <div className="p-12 text-center text-xs flex flex-col items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+                <Loader2 className="w-6 h-6 animate-spin" style={{ color: '#25B89A' }} /> Loading affiliated doctors…
               </div>
             ) : filtered.length === 0 ? (
-              <div className="p-12 text-center text-slate-400 text-xs">
-                <Stethoscope className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+              <div className="p-12 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+                <Stethoscope className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 No doctors found. Click <strong>Add Doctor</strong> to register doctors under your hospital.
               </div>
             ) : (
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-white/10 bg-slate-950/60">
+                  <tr className="border-b" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-surface-3)' }}>
                     {['Doctor Name', 'Speciality', 'Experience', 'Fee', 'Rating', 'OPD Timings', 'Status', 'Actions'].map(h => (
-                      <th key={h} className="px-4 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 whitespace-nowrap">{h}</th>
+                      <th key={h} className="px-4 py-3.5 text-[10px] font-black uppercase tracking-wider whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
-                  {filtered.map((d, i) => (
-                    <tr key={d.id} className="hover:bg-white/[0.02] transition-colors">
+                <tbody className="divide-y" style={{ borderColor: 'var(--border-color)' }}>
+                  {filtered.map((d) => (
+                    <tr key={d.id} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors">
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-black text-xs">
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs" style={{ background: 'rgba(37,184,154,0.15)', color: '#25B89A' }}>
                             {d.name ? d.name.replace(/^Dr\.\s*/i, '')[0]?.toUpperCase() : 'D'}
                           </div>
                           <div>
-                            <p className="font-bold text-white text-xs">{d.name}</p>
-                            <p className="text-[11px] text-slate-400 flex items-center gap-1">
-                              <Phone className="w-3 h-3 text-slate-500" /> {d.phone}
+                            <p className="font-bold text-xs" style={{ color: 'var(--text-primary)' }}>{d.name}</p>
+                            <p className="text-[11px] flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                              <Phone className="w-3 h-3 opacity-60" /> {d.phone}
                             </p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 font-semibold text-emerald-400">{d.speciality}</td>
-                      <td className="px-4 py-3.5 text-slate-300">{d.exp || 5} yrs</td>
-                      <td className="px-4 py-3.5 font-bold text-white">₹{d.fee || 500}</td>
+                      <td className="px-4 py-3.5 font-bold" style={{ color: '#25B89A' }}>{d.speciality}</td>
+                      <td className="px-4 py-3.5" style={{ color: 'var(--text-secondary)' }}>{d.exp || 5} yrs</td>
+                      <td className="px-4 py-3.5 font-bold" style={{ color: 'var(--text-primary)' }}>₹{d.fee || 500}</td>
                       <td className="px-4 py-3.5">
                         <span className="flex items-center gap-1 text-amber-400 font-bold">
                           <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> {d.rating || 4.8}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 text-slate-300">{d.shifts || 'Mon-Sat 9AM-5PM'}</td>
+                      <td className="px-4 py-3.5" style={{ color: 'var(--text-secondary)' }}>{d.shifts || 'Mon-Sat 9AM-5PM'}</td>
                       <td className="px-4 py-3.5">
                         <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${statusBadge(d.status)}`}>
                           {d.status}
@@ -320,7 +324,8 @@ export default function HospitalDoctorsPage() {
                           <button
                             type="button"
                             onClick={() => setViewDoctor(d)}
-                            className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+                            className="p-1.5 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                            style={{ color: '#25B89A' }}
                             title="View Doctor Details"
                           >
                             <Eye className="w-4 h-4" />
@@ -328,7 +333,7 @@ export default function HospitalDoctorsPage() {
                           <button
                             type="button"
                             onClick={() => handleRemoveDoctor(d.id, d.name)}
-                            className="p-1.5 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors"
+                            className="p-1.5 rounded-lg text-red-500 transition-colors hover:bg-red-500/10"
                             title="Remove Doctor Affiliation"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -344,30 +349,32 @@ export default function HospitalDoctorsPage() {
         </div>
       </main>
 
-      {/* ── ADD DOCTOR MODAL (UI/UX DESIGN) ── */}
+      {/* ── ADD DOCTOR MODAL (LIGHT & DARK MODE READY) ── */}
       <AnimatePresence>
         {addModalOpen && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(8px)' }}>
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="w-full max-w-2xl bg-slate-900 border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
             >
               {/* Modal Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-950/80 flex-shrink-0">
+              <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-surface)' }}>
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold" style={{ background: 'rgba(37,184,154,0.15)', color: '#25B89A' }}>
                     <Stethoscope className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-base text-white">Add Doctor to Hospital</h3>
-                    <p className="text-xs text-slate-400">Register and affiliate a new specialist doctor</p>
+                    <h3 className="font-extrabold text-base" style={{ color: 'var(--text-primary)' }}>Add Doctor to Hospital</h3>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Register and affiliate a new specialist doctor</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setAddModalOpen(false)}
-                  className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
+                  className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  style={{ color: 'var(--text-muted)' }}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -379,31 +386,33 @@ export default function HospitalDoctorsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Doctor Full Name */}
                   <div>
-                    <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1 block">Full Name *</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider mb-1 block" style={{ color: '#25B89A' }}>Full Name *</label>
                     <div className="relative">
-                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                       <input
                         type="text"
                         value={docForm.name}
                         onChange={e => handleDoctorNameChange(e.target.value)}
                         onBlur={handleDoctorNameBlur}
                         placeholder="Dr. Ramesh Kumar"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs text-white bg-slate-950 border border-white/10 focus:outline-none focus:border-emerald-500/50"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                        style={{ background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                       />
                     </div>
                   </div>
 
                   {/* Email */}
                   <div>
-                    <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1 block">Email Address *</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider mb-1 block" style={{ color: '#25B89A' }}>Email Address *</label>
                     <div className="relative">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                       <input
                         type="email"
                         value={docForm.email}
                         onChange={e => setDocForm({ ...docForm, email: e.target.value })}
                         placeholder="doctor@hospital.com"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs text-white bg-slate-950 border border-white/10 focus:outline-none focus:border-emerald-500/50"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                        style={{ background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                       />
                     </div>
                   </div>
@@ -412,30 +421,32 @@ export default function HospitalDoctorsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Phone */}
                   <div>
-                    <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1 block">Phone Number *</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider mb-1 block" style={{ color: '#25B89A' }}>Phone Number *</label>
                     <div className="relative">
-                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                       <input
                         type="tel"
                         value={docForm.phone}
                         onChange={e => setDocForm({ ...docForm, phone: e.target.value })}
                         placeholder="+91 98765 43210"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs text-white bg-slate-950 border border-white/10 focus:outline-none focus:border-emerald-500/50"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                        style={{ background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                       />
                     </div>
                   </div>
 
                   {/* Password */}
                   <div>
-                    <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1 block">Login Password</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider mb-1 block" style={{ color: '#25B89A' }}>Login Password</label>
                     <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                       <input
                         type="text"
                         value={docForm.password}
                         onChange={e => setDocForm({ ...docForm, password: e.target.value })}
                         placeholder="Doctor123! (auto-generated if empty)"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs text-white bg-slate-950 border border-white/10 focus:outline-none focus:border-emerald-500/50"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                        style={{ background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                       />
                     </div>
                   </div>
@@ -444,11 +455,12 @@ export default function HospitalDoctorsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Speciality Dropdown */}
                   <div>
-                    <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1 block">Speciality *</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider mb-1 block" style={{ color: '#25B89A' }}>Speciality *</label>
                     <select
                       value={docForm.speciality}
                       onChange={e => setDocForm({ ...docForm, speciality: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-xl text-xs text-white bg-slate-950 border border-white/10 focus:outline-none focus:border-emerald-500/50"
+                      className="w-full px-3 py-2.5 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                      style={{ background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                     >
                       <option value="">Select Speciality</option>
                       {specialities.map(s => (
@@ -459,13 +471,14 @@ export default function HospitalDoctorsPage() {
 
                   {/* Qualification */}
                   <div>
-                    <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1 block">Qualification</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider mb-1 block" style={{ color: '#25B89A' }}>Qualification</label>
                     <input
                       type="text"
                       value={docForm.qualification}
                       onChange={e => setDocForm({ ...docForm, qualification: e.target.value })}
                       placeholder="MBBS, MD (Cardiology)"
-                      className="w-full px-3.5 py-2.5 rounded-xl text-xs text-white bg-slate-950 border border-white/10 focus:outline-none focus:border-emerald-500/50"
+                      className="w-full px-3.5 py-2.5 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                      style={{ background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                     />
                   </div>
                 </div>
@@ -473,35 +486,38 @@ export default function HospitalDoctorsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {/* Experience */}
                   <div>
-                    <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1 block">Experience (Years)</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider mb-1 block" style={{ color: '#25B89A' }}>Experience (Years)</label>
                     <input
                       type="number"
                       min={0}
                       value={docForm.experience}
                       onChange={e => setDocForm({ ...docForm, experience: Number(e.target.value) })}
-                      className="w-full px-3.5 py-2.5 rounded-xl text-xs text-white bg-slate-950 border border-white/10 focus:outline-none focus:border-emerald-500/50"
+                      className="w-full px-3.5 py-2.5 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                      style={{ background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                     />
                   </div>
 
                   {/* Consultation Fee */}
                   <div>
-                    <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1 block">Consultation Fee (₹)</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider mb-1 block" style={{ color: '#25B89A' }}>Consultation Fee (₹)</label>
                     <input
                       type="number"
                       step={50}
                       value={docForm.consultationFee}
                       onChange={e => setDocForm({ ...docForm, consultationFee: Number(e.target.value) })}
-                      className="w-full px-3.5 py-2.5 rounded-xl text-xs text-white bg-slate-950 border border-white/10 focus:outline-none focus:border-emerald-500/50"
+                      className="w-full px-3.5 py-2.5 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                      style={{ background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                     />
                   </div>
 
                   {/* Gender */}
                   <div>
-                    <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1 block">Gender</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider mb-1 block" style={{ color: '#25B89A' }}>Gender</label>
                     <select
                       value={docForm.gender}
                       onChange={e => setDocForm({ ...docForm, gender: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-xl text-xs text-white bg-slate-950 border border-white/10 focus:outline-none focus:border-emerald-500/50"
+                      className="w-full px-3 py-2.5 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                      style={{ background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                     >
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
@@ -513,44 +529,48 @@ export default function HospitalDoctorsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* MCI Reg */}
                   <div>
-                    <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1 block">MCI Registration No.</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider mb-1 block" style={{ color: '#25B89A' }}>MCI Registration No.</label>
                     <input
                       type="text"
                       value={docForm.registrationNo}
                       onChange={e => setDocForm({ ...docForm, registrationNo: e.target.value })}
                       placeholder="MCI-123456"
-                      className="w-full px-3.5 py-2.5 rounded-xl text-xs text-white bg-slate-950 border border-white/10 focus:outline-none focus:border-emerald-500/50"
+                      className="w-full px-3.5 py-2.5 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                      style={{ background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                     />
                   </div>
 
                   {/* OPD Timings / Shifts */}
                   <div>
-                    <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1 block">OPD Timings / Shift</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider mb-1 block" style={{ color: '#25B89A' }}>OPD Timings / Shift</label>
                     <input
                       type="text"
                       value={docForm.opdTimings}
                       onChange={e => setDocForm({ ...docForm, opdTimings: e.target.value })}
                       placeholder="Mon-Sat 9:00 AM - 5:00 PM"
-                      className="w-full px-3.5 py-2.5 rounded-xl text-xs text-white bg-slate-950 border border-white/10 focus:outline-none focus:border-emerald-500/50"
+                      className="w-full px-3.5 py-2.5 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                      style={{ background: 'var(--bg-surface-3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                     />
                   </div>
                 </div>
 
                 {/* Submit Buttons */}
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+                <div className="flex items-center justify-end gap-3 pt-4 border-t" style={{ borderColor: 'var(--border-color)' }}>
                   <button
                     type="button"
                     onClick={() => setAddModalOpen(false)}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-300 bg-white/5 hover:bg-white/10 transition-colors"
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold transition-colors hover:opacity-80"
+                    style={{ background: 'var(--bg-surface-3)', color: 'var(--text-secondary)' }}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="px-6 py-2.5 rounded-xl text-xs font-black text-slate-950 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                    className="px-6 py-2.5 rounded-xl text-xs font-black text-white shadow-lg flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                    style={{ background: 'linear-gradient(135deg, #127A6A 0%, #075E52 100%)' }}
                   >
-                    {submitting ? <Loader2 className="w-4 h-4 animate-spin text-slate-950" /> : <Plus className="w-4 h-4 text-slate-950" />}
+                    {submitting ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Plus className="w-4 h-4 text-white" />}
                     Add Doctor to Hospital
                   </button>
                 </div>
@@ -560,45 +580,47 @@ export default function HospitalDoctorsPage() {
         )}
       </AnimatePresence>
 
-      {/* ── VIEW DOCTOR DETAILS MODAL ── */}
+      {/* ── VIEW DOCTOR DETAILS MODAL (LIGHT & DARK MODE READY) ── */}
       <AnimatePresence>
         {viewDoctor && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(8px)' }}>
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg bg-slate-900 border border-white/15 rounded-3xl p-6 space-y-5 shadow-2xl text-xs"
+              className="w-full max-w-lg rounded-3xl p-6 space-y-5 shadow-2xl text-xs"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-black text-lg">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg" style={{ background: 'rgba(37,184,154,0.15)', color: '#25B89A' }}>
                     {viewDoctor.name ? viewDoctor.name.replace(/^Dr\.\s*/i, '')[0]?.toUpperCase() : 'D'}
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-base text-white">{viewDoctor.name}</h3>
-                    <p className="text-xs font-bold text-emerald-400">{viewDoctor.speciality}</p>
+                    <h3 className="font-extrabold text-base" style={{ color: 'var(--text-primary)' }}>{viewDoctor.name}</h3>
+                    <p className="text-xs font-bold" style={{ color: '#25B89A' }}>{viewDoctor.speciality}</p>
                   </div>
                 </div>
-                <button onClick={() => setViewDoctor(null)} className="text-slate-400 hover:text-white p-1">
+                <button onClick={() => setViewDoctor(null)} className="p-1 hover:opacity-70" style={{ color: 'var(--text-muted)' }}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="space-y-2 bg-slate-950 p-4 rounded-2xl border border-white/10 text-slate-300">
-                <div className="flex justify-between"><span>Phone:</span> <strong className="text-white font-mono">{viewDoctor.phone}</strong></div>
-                {viewDoctor.email && <div className="flex justify-between"><span>Email:</span> <strong className="text-white">{viewDoctor.email}</strong></div>}
-                <div className="flex justify-between"><span>Qualification:</span> <strong className="text-white">{viewDoctor.qualification || 'MBBS'}</strong></div>
-                <div className="flex justify-between"><span>Experience:</span> <strong className="text-white">{viewDoctor.exp || 5} Years</strong></div>
-                <div className="flex justify-between"><span>Consultation Fee:</span> <strong className="text-emerald-400 font-extrabold">₹{viewDoctor.fee || 500}</strong></div>
-                <div className="flex justify-between"><span>OPD Shift:</span> <strong className="text-white">{viewDoctor.shifts || 'Mon-Sat 9AM-5PM'}</strong></div>
+              <div className="space-y-2 p-4 rounded-2xl border" style={{ background: 'var(--bg-surface-3)', borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+                <div className="flex justify-between"><span>Phone:</span> <strong className="font-mono" style={{ color: 'var(--text-primary)' }}>{viewDoctor.phone}</strong></div>
+                {viewDoctor.email && <div className="flex justify-between"><span>Email:</span> <strong style={{ color: 'var(--text-primary)' }}>{viewDoctor.email}</strong></div>}
+                <div className="flex justify-between"><span>Qualification:</span> <strong style={{ color: 'var(--text-primary)' }}>{viewDoctor.qualification || 'MBBS'}</strong></div>
+                <div className="flex justify-between"><span>Experience:</span> <strong style={{ color: 'var(--text-primary)' }}>{viewDoctor.exp || 5} Years</strong></div>
+                <div className="flex justify-between"><span>Consultation Fee:</span> <strong className="font-extrabold" style={{ color: '#25B89A' }}>₹{viewDoctor.fee || 500}</strong></div>
+                <div className="flex justify-between"><span>OPD Shift:</span> <strong style={{ color: 'var(--text-primary)' }}>{viewDoctor.shifts || 'Mon-Sat 9AM-5PM'}</strong></div>
                 <div className="flex justify-between"><span>Status:</span> <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusBadge(viewDoctor.status)}`}>{viewDoctor.status}</span></div>
               </div>
 
               <button
                 type="button"
                 onClick={() => setViewDoctor(null)}
-                className="w-full py-2.5 rounded-xl font-bold bg-white/10 text-white hover:bg-white/15 transition-colors"
+                className="w-full py-2.5 rounded-xl font-bold transition-colors hover:opacity-80"
+                style={{ background: 'var(--bg-surface-3)', color: 'var(--text-primary)' }}
               >
                 Close Details
               </button>

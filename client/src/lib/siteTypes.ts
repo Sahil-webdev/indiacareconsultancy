@@ -52,16 +52,21 @@ export interface SiteHospital {
   image: string;
   registrationDetails: string;
   address: string;
+  googleMapsLink?: string;
   location: string;
   rating: number;
+  hospitalType?: string;
+  totalBeds?: number;
   departments: string[];
   facilities: string[];
+  accreditations?: string[];
   isApproved: boolean;
   isSubscribed?: boolean;
   subscriptionPlan: 'Basic' | 'Premium';
   opdTimings: string;
   emergencyContact: string;
   gallery: string[];
+  about?: string;
   doctors?: string[];
   affiliatedDoctors?: SiteHospitalDoctorOption[];
 }

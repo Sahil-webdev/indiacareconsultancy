@@ -38,6 +38,17 @@ const connectMySQL = async () => {
     try {
       await conn.execute("ALTER TABLE leads ADD COLUMN consultation_fee DECIMAL(10,2) DEFAULT 9.00");
     } catch (e) {}
+    try {
+      await conn.execute(`
+        CREATE TABLE IF NOT EXISTS hospital_doctors (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          hospital_id INT NOT NULL,
+          doctor_id INT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY (hospital_id, doctor_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+    } catch (e) {}
     conn.release();
 
     console.log(`✅ MySQL connected: ${process.env.MYSQL_HOST || '127.0.0.1'}:${process.env.MYSQL_PORT || 3306}/${process.env.MYSQL_DATABASE || 'icc'}`);

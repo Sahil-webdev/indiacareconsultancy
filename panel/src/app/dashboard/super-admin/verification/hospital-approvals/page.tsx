@@ -28,6 +28,9 @@ type Hospital = {
   facilities: string[];
   doctors: number;
   about: string;
+  latestSubscriptionUtr: string;
+  latestSubscriptionPaymentStatus: string;
+  latestSubscriptionSubmittedAt: string;
 };
 
 function Toast({ message, type, onDone }: { message: string; type: 'success' | 'error'; onDone: () => void }) {
@@ -92,7 +95,7 @@ function ConfirmModal({
           </h3>
           <p className="text-xs mt-1.5 leading-relaxed" style={{ color: '#94A3B8' }}>
             {action === 'approve'
-              ? `Approve the registration for "${hospitalName}"? They will receive a subscription payment prompt after logging in.`
+              ? `Approve the registration for "${hospitalName}"? Panel access tabhi milega jab subscription payment bhi approved ho jaayegi.`
               : `Permanently reject and delete the registration for "${hospitalName}"? This cannot be undone.`
             }
           </p>
@@ -173,6 +176,20 @@ function ProfileModal({
             {hospital.website && <p className="text-xs flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}><Globe className="w-3.5 h-3.5 flex-shrink-0 text-violet-400" />{hospital.website}</p>}
             <p className="text-xs flex items-start gap-2" style={{ color: 'var(--text-secondary)' }}><MapPin className="w-3.5 h-3.5 flex-shrink-0 text-violet-400 mt-0.5" />{hospital.address}{hospital.city ? `, ${hospital.city}` : ''}</p>
             {hospital.emergencyContact && <p className="text-xs flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}><Phone className="w-3.5 h-3.5 flex-shrink-0 text-red-400" />Emergency: {hospital.emergencyContact}</p>}
+          </section>
+
+          <section className="panel-card p-4 space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#25B89A' }}>Subscription Payment Verification</p>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <p className="text-[10px]" style={{ color: '#64748B' }}>Payment Status</p>
+                <p className="font-semibold mt-0.5" style={{ color: 'var(--text-primary)' }}>{hospital.latestSubscriptionPaymentStatus || 'Not submitted'}</p>
+              </div>
+              <div>
+                <p className="text-[10px]" style={{ color: '#64748B' }}>Latest UTR</p>
+                <p className="font-semibold mt-0.5 break-all" style={{ color: 'var(--text-primary)' }}>{hospital.latestSubscriptionUtr || 'Not available'}</p>
+              </div>
+            </div>
           </section>
 
           {hospital.about && (
@@ -273,6 +290,9 @@ export default function HospitalApprovalsPage() {
           facilities: h.facilities || [],
           doctors: h.doctorCount || 0,
           about: h.about || '',
+          latestSubscriptionUtr: h.latestSubscriptionUtr || '',
+          latestSubscriptionPaymentStatus: h.latestSubscriptionPaymentStatus || '',
+          latestSubscriptionSubmittedAt: h.latestSubscriptionSubmittedAt || '',
         }));
         setHospitals(mapped);
       }
@@ -300,7 +320,7 @@ export default function HospitalApprovalsPage() {
       if (action === 'approve') {
         await panelApi(`/api/hospitals/${hospitalId}`, {
           method: 'PATCH',
-          body: JSON.stringify({ isApproved: true }),
+          body: JSON.stringify({ approvalDecision: 'approved' }),
         });
         setHospitals(prev => prev.filter(h => h.id !== hospitalId));
         if (profileOpen?.id === hospitalId) setProfileOpen(null);
@@ -424,6 +444,18 @@ export default function HospitalApprovalsPage() {
                         <span className="text-[10px] flex items-center gap-1" style={{ color: '#64748B' }}><MapPin className="w-3 h-3" />{h.city}</span>
                         <span className="text-[10px] flex items-center gap-1" style={{ color: '#64748B' }}><Phone className="w-3 h-3" />{h.phone}</span>
                         <span className="text-[10px] flex items-center gap-1" style={{ color: '#64748B' }}><Calendar className="w-3 h-3" />Submitted {h.submitted}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                          h.latestSubscriptionPaymentStatus === 'Paid'
+                            ? 'bg-emerald-500/12 text-emerald-400 border-emerald-500/20'
+                            : h.latestSubscriptionPaymentStatus === 'Pending'
+                              ? 'bg-amber-500/12 text-amber-400 border-amber-500/20'
+                              : 'bg-slate-500/12 text-slate-300 border-slate-500/20'
+                        }`}>
+                          {h.latestSubscriptionPaymentStatus || 'Payment Not Submitted'}
+                        </span>
+                        {h.latestSubscriptionUtr && (
+                          <span className="text-[10px] font-mono" style={{ color: '#25B89A' }}>UTR: {h.latestSubscriptionUtr}</span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">

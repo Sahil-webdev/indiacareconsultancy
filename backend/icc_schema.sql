@@ -96,6 +96,8 @@ CREATE TABLE IF NOT EXISTS hospitals (
   hospital_type        ENUM('Multispeciality','General','Specialty','Clinic','Nursing Home','Diagnostic Centre') NOT NULL DEFAULT 'Multispeciality',
   total_beds           SMALLINT,
   address              TEXT          NOT NULL,
+  google_maps_link     TEXT,
+  gallery              JSON          NULL,
   city                 VARCHAR(80)   NOT NULL,
   opd_timings          VARCHAR(60)   DEFAULT '9:00 AM - 6:00 PM',
   about                TEXT,

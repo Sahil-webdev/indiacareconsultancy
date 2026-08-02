@@ -17,7 +17,11 @@ const baseDoctorSelect = `
     COALESCE((SELECT JSON_ARRAYAGG(language) FROM doctor_languages WHERE doctor_id = d.id), JSON_ARRAY()) AS languages,
     COALESCE((SELECT JSON_ARRAYAGG(service) FROM doctor_services WHERE doctor_id = d.id), JSON_ARRAY()) AS services,
     COALESCE((SELECT JSON_ARRAYAGG(award) FROM doctor_awards WHERE doctor_id = d.id), JSON_ARRAY()) AS awards,
-    (SELECT COUNT(*) FROM profile_change_requests WHERE entity_type = 'doctor' AND entity_id = d.id AND status = 'Pending') AS pending_change_requests
+    (SELECT COUNT(*) FROM profile_change_requests WHERE entity_type = 'doctor' AND entity_id = d.id AND status = 'Pending') AS pending_change_requests,
+    (SELECT p.transaction_ref FROM payments p WHERE p.payment_type = 'subscription' AND p.entity_type = 'doctor' AND p.entity_id = d.id ORDER BY p.created_at DESC, p.id DESC LIMIT 1) AS latest_subscription_utr,
+    (SELECT p.status FROM payments p WHERE p.payment_type = 'subscription' AND p.entity_type = 'doctor' AND p.entity_id = d.id ORDER BY p.created_at DESC, p.id DESC LIMIT 1) AS latest_subscription_payment_status,
+    (SELECT p.screenshot_url FROM payments p WHERE p.payment_type = 'subscription' AND p.entity_type = 'doctor' AND p.entity_id = d.id ORDER BY p.created_at DESC, p.id DESC LIMIT 1) AS latest_subscription_screenshot_url,
+    (SELECT p.created_at FROM payments p WHERE p.payment_type = 'subscription' AND p.entity_type = 'doctor' AND p.entity_id = d.id ORDER BY p.created_at DESC, p.id DESC LIMIT 1) AS latest_subscription_submitted_at
   FROM doctors d
   INNER JOIN users u ON u.id = d.user_id
 `;
@@ -45,7 +49,6 @@ router.get('/', async (req, res, next) => {
     if (approval === 'approved') conditions.push('d.is_approved = 1');
     if (approval === 'pending') {
       conditions.push('d.is_approved = 0');
-      conditions.push('u.is_active = 1');
     }
     if (approval === 'rejected') {
       conditions.push('d.is_approved = 0');

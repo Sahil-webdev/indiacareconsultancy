@@ -16,7 +16,11 @@ const baseHospitalSelect = `
     COALESCE((SELECT JSON_ARRAYAGG(facility) FROM hospital_facilities WHERE hospital_id = h.id), JSON_ARRAY()) AS facilities,
     COALESCE((SELECT JSON_ARRAYAGG(accreditation) FROM hospital_accreditations WHERE hospital_id = h.id), JSON_ARRAY()) AS accreditations,
     (SELECT COUNT(*) FROM hospital_doctors WHERE hospital_id = h.id) AS doctor_count,
-    (SELECT COUNT(*) FROM profile_change_requests WHERE entity_type = 'hospital' AND entity_id = h.id AND status = 'Pending') AS pending_change_requests
+    (SELECT COUNT(*) FROM profile_change_requests WHERE entity_type = 'hospital' AND entity_id = h.id AND status = 'Pending') AS pending_change_requests,
+    (SELECT p.transaction_ref FROM payments p WHERE p.payment_type = 'subscription' AND p.entity_type = 'hospital' AND p.entity_id = h.id ORDER BY p.created_at DESC, p.id DESC LIMIT 1) AS latest_subscription_utr,
+    (SELECT p.status FROM payments p WHERE p.payment_type = 'subscription' AND p.entity_type = 'hospital' AND p.entity_id = h.id ORDER BY p.created_at DESC, p.id DESC LIMIT 1) AS latest_subscription_payment_status,
+    (SELECT p.screenshot_url FROM payments p WHERE p.payment_type = 'subscription' AND p.entity_type = 'hospital' AND p.entity_id = h.id ORDER BY p.created_at DESC, p.id DESC LIMIT 1) AS latest_subscription_screenshot_url,
+    (SELECT p.created_at FROM payments p WHERE p.payment_type = 'subscription' AND p.entity_type = 'hospital' AND p.entity_id = h.id ORDER BY p.created_at DESC, p.id DESC LIMIT 1) AS latest_subscription_submitted_at
   FROM hospitals h
   INNER JOIN users u ON u.id = h.user_id
 `;
@@ -44,7 +48,6 @@ router.get('/', async (req, res, next) => {
     if (approval === 'approved') conditions.push('h.is_approved = 1');
     if (approval === 'pending') {
       conditions.push('h.is_approved = 0');
-      conditions.push('u.is_active = 1');
     }
     if (approval === 'rejected') {
       conditions.push('h.is_approved = 0');
@@ -167,6 +170,153 @@ router.get('/me/profile', protect, async (req, res, next) => {
   }
 });
 
+// GET /api/hospitals/me/doctors — list doctors affiliated with logged in hospital
+router.get('/me/doctors', protect, async (req, res, next) => {
+  try {
+    const hospital = await fetchOne('SELECT id, name FROM hospitals WHERE user_id = ? LIMIT 1', [req.user.id]);
+    if (!hospital) {
+      return res.status(404).json({ success: false, message: 'Hospital profile not found' });
+    }
+
+    const doctors = await fetchRows(
+      `SELECT d.id, d.name, d.email, d.phone, d.speciality, d.qualification, d.experience_years AS exp,
+              d.consultation_fee AS fee, d.rating, d.opd_timings AS shifts, d.photo,
+              d.is_approved, d.is_subscribed, d.hospital_name,
+              CASE
+                WHEN d.is_approved = 1 AND d.is_subscribed = 1 THEN 'Active'
+                WHEN d.is_approved = 0 THEN 'Pending Verification'
+                ELSE 'Active'
+              END AS status
+       FROM doctors d
+       WHERE d.id IN (SELECT doctor_id FROM hospital_doctors WHERE hospital_id = ?)
+          OR (d.hospital_name IS NOT NULL AND d.hospital_name LIKE ?)
+       ORDER BY d.id DESC`,
+      [hospital.id, `%${hospital.name}%`]
+    );
+
+    res.json({ success: true, count: doctors.length, doctors });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/hospitals/me/doctors — add/affiliate a doctor to hospital
+router.post('/me/doctors', protect, async (req, res, next) => {
+  try {
+    const hospital = await fetchOne('SELECT id, name, city FROM hospitals WHERE user_id = ? LIMIT 1', [req.user.id]);
+    if (!hospital) {
+      return res.status(404).json({ success: false, message: 'Hospital profile not found' });
+    }
+
+    const pool = getPool();
+    const body = req.body;
+
+    if (body.doctorId) {
+      // Mode 1: Link existing doctor by ID
+      await pool.execute(
+        'INSERT IGNORE INTO hospital_doctors (hospital_id, doctor_id) VALUES (?, ?)',
+        [hospital.id, body.doctorId]
+      );
+      await pool.execute(
+        'UPDATE doctors SET hospital_name = ? WHERE id = ?',
+        [hospital.name, body.doctorId]
+      );
+      return res.json({ success: true, message: 'Doctor linked to hospital successfully' });
+    }
+
+    // Mode 2: Create new Doctor and affiliate to hospital
+    if (!body.name || !body.email || !body.phone || !body.speciality) {
+      return res.status(400).json({ success: false, message: 'Name, email, phone, and speciality are required' });
+    }
+
+    const { createUserAccount } = require('../services/accountProvisioning');
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      let doctorName = body.name.trim();
+      if (!/^Dr\.\s*/i.test(doctorName)) {
+        doctorName = `Dr. ${doctorName.replace(/\b(\w)/g, (ch) => ch.toUpperCase())}`;
+      } else {
+        doctorName = doctorName.replace(/\b(\w)/g, (ch) => ch.toUpperCase());
+      }
+
+      const userId = await createUserAccount(connection, {
+        name: doctorName,
+        email: body.email.trim(),
+        password: body.password || 'Doctor123!',
+        role: 'doctor',
+      });
+
+      const [docRes] = await connection.execute(
+        `INSERT INTO doctors
+          (user_id, name, email, phone, gender, photo, registration_no, qualification, speciality, experience_years, hospital_name, clinic_address, city, area, consultation_fee, consultation_type, opd_timings, bio, rating, is_approved, is_subscribed)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1)`,
+        [
+          userId,
+          doctorName,
+          body.email.trim(),
+          body.phone.trim(),
+          body.gender || 'Male',
+          body.photo || '/doctors/default-doctor.jpg',
+          body.registrationNo || 'MCI-PENDING',
+          body.qualification || 'MBBS',
+          body.speciality,
+          body.experience || 0,
+          hospital.name,
+          body.clinicAddress || hospital.name,
+          hospital.city || 'India',
+          body.area || '',
+          body.consultationFee || 500,
+          body.consultationType || 'Both',
+          body.opdTimings || 'Mon-Sat 9:00 AM - 5:00 PM',
+          body.bio || `Affiliated Specialist Doctor at ${hospital.name}`,
+          4.8,
+        ]
+      );
+
+      const newDoctorId = docRes.insertId;
+
+      await connection.execute(
+        'INSERT IGNORE INTO hospital_doctors (hospital_id, doctor_id) VALUES (?, ?)',
+        [hospital.id, newDoctorId]
+      );
+
+      await connection.commit();
+      res.status(201).json({ success: true, message: `${doctorName} added and affiliated successfully!` });
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+});
+
+// DELETE /api/hospitals/me/doctors/:doctorId — remove doctor affiliation
+router.delete('/me/doctors/:doctorId', protect, async (req, res, next) => {
+  try {
+    const hospital = await fetchOne('SELECT id FROM hospitals WHERE user_id = ? LIMIT 1', [req.user.id]);
+    if (!hospital) {
+      return res.status(404).json({ success: false, message: 'Hospital profile not found' });
+    }
+    const pool = getPool();
+    await pool.execute(
+      'DELETE FROM hospital_doctors WHERE hospital_id = ? AND doctor_id = ?',
+      [hospital.id, req.params.doctorId]
+    );
+    res.json({ success: true, message: 'Doctor unlinked from hospital' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     const hospital = await getHospitalById(req.params.id);
@@ -226,7 +376,7 @@ router.patch('/:id', protect, async (req, res, next) => {
 
     await pool.execute(
       `UPDATE hospitals
-       SET name = ?, phone = ?, emergency_contact = ?, website = ?, image = ?, registration_no = ?, hospital_type = ?, total_beds = ?, address = ?, city = ?, opd_timings = ?, about = ?, rating = ?, is_approved = ?, is_subscribed = ?, subscription_paid_at = ?, subscription_ends_at = ?
+       SET name = ?, phone = ?, emergency_contact = ?, website = ?, image = ?, registration_no = ?, hospital_type = ?, total_beds = ?, address = ?, google_maps_link = ?, gallery = ?, city = ?, opd_timings = ?, about = ?, rating = ?, is_approved = ?, is_subscribed = ?, subscription_paid_at = ?, subscription_ends_at = ?
        WHERE id = ?`,
       [
         updates.name ?? hospital.name,
@@ -238,6 +388,10 @@ router.patch('/:id', protect, async (req, res, next) => {
         updates.hospitalType ?? hospital.hospitalType,
         updates.totalBeds ?? hospital.totalBeds,
         updates.address ?? hospital.address,
+        updates.googleMapsLink ?? hospital.googleMapsLink ?? null,
+        updates.gallery === undefined
+          ? JSON.stringify(hospital.gallery || [])
+          : JSON.stringify(Array.isArray(updates.gallery) ? updates.gallery : []),
         updates.location ?? hospital.location,
         updates.opdTimings ?? hospital.opdTimings,
         updates.about ?? hospital.about,

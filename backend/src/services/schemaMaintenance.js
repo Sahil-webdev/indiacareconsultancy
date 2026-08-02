@@ -77,6 +77,7 @@ async function ensureOperationalSchema() {
   await ensureEmployeesColumns();
   await ensurePatientsTable();
   await ensureDoctorProfileColumns();
+  await ensureHospitalProfileColumns();
   await ensureProfileChangeStorageColumns();
 }
 
@@ -218,6 +219,25 @@ async function ensureDoctorProfileColumns() {
   for (const statement of requiredColumns) {
     try {
       await pool.execute(`ALTER TABLE doctors ${statement}`);
+    } catch (error) {
+      if (!String(error.message).includes('Duplicate column name')) {
+        throw error;
+      }
+    }
+  }
+}
+
+async function ensureHospitalProfileColumns() {
+  const pool = getPool();
+
+  const requiredColumns = [
+    'ADD COLUMN google_maps_link TEXT NULL AFTER address',
+    'ADD COLUMN gallery JSON NULL AFTER google_maps_link',
+  ];
+
+  for (const statement of requiredColumns) {
+    try {
+      await pool.execute(`ALTER TABLE hospitals ${statement}`);
     } catch (error) {
       if (!String(error.message).includes('Duplicate column name')) {
         throw error;

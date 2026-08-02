@@ -29,6 +29,32 @@ router.post('/login', async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
+    if (user.role === 'doctor') {
+      const doctorProfile = await fetchOne(
+        'SELECT id, is_approved, is_subscribed FROM doctors WHERE user_id = ? LIMIT 1',
+        [user.id]
+      );
+      if (!doctorProfile || !Number(doctorProfile.is_approved) || !Number(doctorProfile.is_subscribed)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Doctor panel access will unlock only after profile approval and subscription payment approval are both completed by Super Admin.',
+        });
+      }
+    }
+
+    if (user.role === 'hospital') {
+      const hospitalProfile = await fetchOne(
+        'SELECT id, is_approved, is_subscribed FROM hospitals WHERE user_id = ? LIMIT 1',
+        [user.id]
+      );
+      if (!hospitalProfile || !Number(hospitalProfile.is_approved) || !Number(hospitalProfile.is_subscribed)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Hospital panel access will unlock only after profile approval and subscription payment approval are both completed by Super Admin.',
+        });
+      }
+    }
+
     const token = signToken(user);
     await recordAuditLog({
       userId: user.id,
@@ -165,8 +191,17 @@ router.post('/register-doctor', async (req, res, next) => {
 
     const { createSuperAdminNotification } = require('../services/notifications');
     await createSuperAdminNotification({
-      title: 'New Doctor Partner Registration & Subscription',
-      message: `${body.name} registered as Doctor partner and submitted UTR: ${body.utrNumber || 'N/A'}.`,
+      title: 'New Doctor Registration Request',
+      message: `${body.name} submitted a new doctor registration request and is awaiting profile approval.`,
+      category: 'verification',
+      entityType: 'doctor',
+      entityId: doctorId,
+      actionUrl: '/dashboard/super-admin/verification/doctor-approvals',
+      metadata: { doctorName: body.name, doctorEmail: body.email },
+    });
+    await createSuperAdminNotification({
+      title: 'Doctor Subscription Payment Submitted',
+      message: `${body.name} submitted subscription payment UTR: ${body.utrNumber || 'N/A'} for verification.`,
       category: 'subscription',
       entityType: 'doctor',
       entityId: doctorId,
@@ -244,8 +279,17 @@ router.post('/register-hospital', async (req, res, next) => {
 
     const { createSuperAdminNotification } = require('../services/notifications');
     await createSuperAdminNotification({
-      title: 'New Hospital Partner Registration & Subscription',
-      message: `${body.name} registered as Hospital partner and submitted UTR: ${body.utrNumber || 'N/A'}.`,
+      title: 'New Hospital Registration Request',
+      message: `${body.name} submitted a new hospital registration request and is awaiting profile approval.`,
+      category: 'verification',
+      entityType: 'hospital',
+      entityId: hospitalId,
+      actionUrl: '/dashboard/super-admin/verification/hospital-approvals',
+      metadata: { hospitalName: body.name, hospitalEmail: body.email },
+    });
+    await createSuperAdminNotification({
+      title: 'Hospital Subscription Payment Submitted',
+      message: `${body.name} submitted subscription payment UTR: ${body.utrNumber || 'N/A'} for verification.`,
       category: 'subscription',
       entityType: 'hospital',
       entityId: hospitalId,

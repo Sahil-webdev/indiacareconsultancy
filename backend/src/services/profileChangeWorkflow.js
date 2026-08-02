@@ -46,6 +46,11 @@ const HOSPITAL_SCALAR_FIELDS = {
   hospitalType: { column: 'hospital_type' },
   totalBeds: { column: 'total_beds', parse: (value) => Number(value || 0) },
   address: { column: 'address' },
+  googleMapsLink: { column: 'google_maps_link' },
+  gallery: {
+    column: 'gallery',
+    parse: (value) => typeof value === 'string' ? value : JSON.stringify(value || []),
+  },
   location: { column: 'city' },
   opdTimings: { column: 'opd_timings' },
   about: { column: 'about' },

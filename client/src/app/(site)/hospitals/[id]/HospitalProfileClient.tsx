@@ -222,8 +222,8 @@ export default function HospitalProfileClient({ hospital }: Props) {
                 className="lg:col-span-5 flex flex-col gap-3 pt-2">
                 <div>
                   <div className="flex flex-wrap gap-2 mb-2">
-                    <span className="bg-soft-green text-primary-green text-[11px] font-bold px-3 py-1 rounded-full border border-primary-green/15">Multi-Speciality</span>
-                    <span className="bg-soft-green text-primary-green text-[11px] font-bold px-3 py-1 rounded-full border border-primary-green/15">Super Speciality</span>
+                    <span className="bg-soft-green text-primary-green text-[11px] font-bold px-3 py-1 rounded-full border border-primary-green/15">{hospital.hospitalType || 'Multispeciality'}</span>
+                    <span className="bg-soft-green text-primary-green text-[11px] font-bold px-3 py-1 rounded-full border border-primary-green/15">{hospital.totalBeds || 0}+ Beds</span>
                   </div>
                   <h1 className="text-2xl sm:text-4xl font-extrabold text-dark-navy tracking-tight leading-tight">{hospital.name}</h1>
                   <div className="flex items-center gap-1.5 text-sm text-text-grey mt-1.5">
@@ -364,9 +364,9 @@ export default function HospitalProfileClient({ hospital }: Props) {
                 <Building2 className="w-5 h-5 text-primary-green" /> About Hospital
               </h2>
               <p className="text-sm text-text-grey leading-relaxed">
-                {hospital.name} is a leading multi-speciality hospital and a verified India Care Consultancy partner.
-                Located at {hospital.address}, the hospital offers world-class medical treatment across {hospital.departments.length} specialised departments.
-                It has been recognised for clinical excellence, patient safety, and infrastructure quality.
+                {hospital.about?.trim()
+                  ? hospital.about
+                  : `${hospital.name} is a leading ${hospital.hospitalType || 'multi-speciality'} hospital and a verified India Care Consultancy partner. Located at ${hospital.address}, the hospital offers world-class medical treatment across ${hospital.departments.length} specialised departments. It has been recognised for clinical excellence, patient safety, and infrastructure quality.`}
               </p>
 
               {/* History Timeline */}
@@ -672,7 +672,7 @@ export default function HospitalProfileClient({ hospital }: Props) {
                   <p className="text-sm font-bold text-dark-navy">{hospital.name}</p>
                   <p className="text-xs text-text-grey mt-1">{hospital.address}</p>
                 </div>
-                <a href={`https://maps.google.com/?q=${encodeURIComponent(hospital.address)}`} target="_blank" rel="noopener noreferrer"
+                <a href={hospital.googleMapsLink?.trim() || `https://maps.google.com/?q=${encodeURIComponent(hospital.address)}`} target="_blank" rel="noopener noreferrer"
                   className="relative flex items-center gap-1.5 text-xs font-bold text-white gradient-primary px-4 py-2 rounded-xl shadow-md">
                   Open in Google Maps <ArrowRight className="w-3.5 h-3.5" />
                 </a>

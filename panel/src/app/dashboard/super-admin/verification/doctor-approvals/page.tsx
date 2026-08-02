@@ -31,6 +31,9 @@ type Doctor = {
   services: string[];
   awards: string[];
   regNo: string;
+  latestSubscriptionUtr: string;
+  latestSubscriptionPaymentStatus: string;
+  latestSubscriptionSubmittedAt: string;
 };
 
 function Toast({ message, type, onDone }: { message: string; type: 'success' | 'error'; onDone: () => void }) {
@@ -95,7 +98,7 @@ function ConfirmModal({
           </h3>
           <p className="text-xs mt-1.5 leading-relaxed" style={{ color: '#94A3B8' }}>
             {action === 'approve'
-              ? `Approve the registration for "${doctorName}"? They will receive a subscription payment prompt after logging in.`
+              ? `Approve the registration for "${doctorName}"? Panel access tabhi milega jab subscription payment bhi approved ho jaayegi.`
               : `Permanently reject and delete the registration for "${doctorName}"? This cannot be undone.`
             }
           </p>
@@ -177,6 +180,20 @@ function ProfileModal({
             <p className="text-xs flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}><Phone className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />{doctor.phone}</p>
             <p className="text-xs flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}><Globe className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />{doctor.email}</p>
             <p className="text-xs flex items-start gap-2" style={{ color: 'var(--text-secondary)' }}><MapPin className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400 mt-0.5" />{doctor.clinicAddress ? `${doctor.clinicAddress}, ` : ''}{doctor.city}</p>
+          </section>
+
+          <section className="panel-card p-4 space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#25B89A' }}>Subscription Payment Verification</p>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <p className="text-[10px]" style={{ color: '#64748B' }}>Payment Status</p>
+                <p className="font-semibold mt-0.5" style={{ color: 'var(--text-primary)' }}>{doctor.latestSubscriptionPaymentStatus || 'Not submitted'}</p>
+              </div>
+              <div>
+                <p className="text-[10px]" style={{ color: '#64748B' }}>Latest UTR</p>
+                <p className="font-semibold mt-0.5 break-all" style={{ color: 'var(--text-primary)' }}>{doctor.latestSubscriptionUtr || 'Not available'}</p>
+              </div>
+            </div>
           </section>
 
           {doctor.bio && (
@@ -270,6 +287,9 @@ export default function DoctorApprovalsPage() {
           services: d.services || [],
           awards: d.awards || [],
           regNo: d.medicalRegistrationNumber,
+          latestSubscriptionUtr: d.latestSubscriptionUtr || '',
+          latestSubscriptionPaymentStatus: d.latestSubscriptionPaymentStatus || '',
+          latestSubscriptionSubmittedAt: d.latestSubscriptionSubmittedAt || '',
         }));
         setDoctors(mapped);
       }
@@ -297,7 +317,7 @@ export default function DoctorApprovalsPage() {
       if (action === 'approve') {
         await panelApi(`/api/doctors/${doctorId}`, {
           method: 'PATCH',
-          body: JSON.stringify({ isApproved: true }),
+          body: JSON.stringify({ approvalDecision: 'approved' }),
         });
         setDoctors(prev => prev.filter(d => d.id !== doctorId));
         if (profileOpen?.id === doctorId) setProfileOpen(null);
@@ -421,6 +441,18 @@ export default function DoctorApprovalsPage() {
                         <span className="text-[10px] flex items-center gap-1" style={{ color: '#64748B' }}><MapPin className="w-3 h-3" />{d.city}</span>
                         <span className="text-[10px] flex items-center gap-1" style={{ color: '#64748B' }}><Phone className="w-3 h-3" />{d.phone}</span>
                         <span className="text-[10px] flex items-center gap-1" style={{ color: '#64748B' }}><Calendar className="w-3 h-3" />Submitted {d.submitted}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                          d.latestSubscriptionPaymentStatus === 'Paid'
+                            ? 'bg-emerald-500/12 text-emerald-400 border-emerald-500/20'
+                            : d.latestSubscriptionPaymentStatus === 'Pending'
+                              ? 'bg-amber-500/12 text-amber-400 border-amber-500/20'
+                              : 'bg-slate-500/12 text-slate-300 border-slate-500/20'
+                        }`}>
+                          {d.latestSubscriptionPaymentStatus || 'Payment Not Submitted'}
+                        </span>
+                        {d.latestSubscriptionUtr && (
+                          <span className="text-[10px] font-mono" style={{ color: '#25B89A' }}>UTR: {d.latestSubscriptionUtr}</span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">

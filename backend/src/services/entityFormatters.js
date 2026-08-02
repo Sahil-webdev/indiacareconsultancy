@@ -49,6 +49,10 @@ function formatDoctor(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     pendingChangeRequests: Number(row.pending_change_requests || 0),
+    latestSubscriptionUtr: row.latest_subscription_utr || '',
+    latestSubscriptionPaymentStatus: row.latest_subscription_payment_status || '',
+    latestSubscriptionScreenshotUrl: row.latest_subscription_screenshot_url || '',
+    latestSubscriptionSubmittedAt: row.latest_subscription_submitted_at || null,
   };
 }
 
@@ -68,6 +72,7 @@ function formatHospital(row) {
     registrationDetails: row.registration_no,
     hospitalType: row.hospital_type,
     address: row.address,
+    googleMapsLink: row.google_maps_link || '',
     location: row.city,
     city: row.city,
     rating: Number(row.rating || 0),
@@ -86,6 +91,10 @@ function formatHospital(row) {
     totalBeds: Number(row.total_beds || 0),
     doctorCount: Number(row.doctor_count || 0),
     pendingChangeRequests: Number(row.pending_change_requests || 0),
+    latestSubscriptionUtr: row.latest_subscription_utr || '',
+    latestSubscriptionPaymentStatus: row.latest_subscription_payment_status || '',
+    latestSubscriptionScreenshotUrl: row.latest_subscription_screenshot_url || '',
+    latestSubscriptionSubmittedAt: row.latest_subscription_submitted_at || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

@@ -35,6 +35,7 @@ function formatDoctor(row) {
     consultationType: row.consultation_type,
     isApproved,
     isSubscribed: boolFromDb(row.is_subscribed),
+    isHospitalManaged: boolFromDb(row.is_hospital_managed),
     isActive,
     approvalStatus,
     subscriptionEndsAt: row.subscription_ends_at,

@@ -214,6 +214,7 @@ async function ensureDoctorProfileColumns() {
   const requiredColumns = [
     'ADD COLUMN google_maps_link TEXT NULL AFTER clinic_address',
     'ADD COLUMN availability_schedule JSON NULL AFTER google_maps_link',
+    'ADD COLUMN is_hospital_managed TINYINT(1) NOT NULL DEFAULT 0 AFTER rating',
   ];
 
   for (const statement of requiredColumns) {

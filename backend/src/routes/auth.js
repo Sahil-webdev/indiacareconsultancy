@@ -31,9 +31,15 @@ router.post('/login', async (req, res, next) => {
 
     if (user.role === 'doctor') {
       const doctorProfile = await fetchOne(
-        'SELECT id, is_approved, is_subscribed FROM doctors WHERE user_id = ? LIMIT 1',
+        'SELECT id, is_approved, is_subscribed, is_hospital_managed FROM doctors WHERE user_id = ? LIMIT 1',
         [user.id]
       );
+      if (doctorProfile && Number(doctorProfile.is_hospital_managed)) {
+        return res.status(403).json({
+          success: false,
+          message: 'This doctor account is managed by the hospital and does not have a separate doctor panel login. Please access and manage it from the linked hospital panel.',
+        });
+      }
       if (!doctorProfile || !Number(doctorProfile.is_approved) || !Number(doctorProfile.is_subscribed)) {
         return res.status(403).json({
           success: false,
@@ -101,7 +107,7 @@ router.get('/me', protect, async (req, res, next) => {
 
     let profile = null;
     if (user.role === 'doctor') {
-      profile = await fetchOne('SELECT id, is_subscribed, is_approved FROM doctors WHERE user_id = ? LIMIT 1', [user.id]);
+      profile = await fetchOne('SELECT id, is_subscribed, is_approved, is_hospital_managed FROM doctors WHERE user_id = ? LIMIT 1', [user.id]);
     } else if (user.role === 'hospital') {
       profile = await fetchOne('SELECT id, is_subscribed, is_approved FROM hospitals WHERE user_id = ? LIMIT 1', [user.id]);
     }
@@ -120,6 +126,7 @@ router.get('/me', protect, async (req, res, next) => {
               entityId: String(profile.id),
               isSubscribed: Boolean(Number(profile.is_subscribed)),
               isApproved: Boolean(Number(profile.is_approved)),
+              isHospitalManaged: Boolean(Number(profile.is_hospital_managed || 0)),
             }
           : null,
       },

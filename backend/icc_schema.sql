@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS doctors (
   opd_timings          VARCHAR(60),
   bio                  TEXT,
   rating               DECIMAL(3,1)  DEFAULT 4.5,
+  is_hospital_managed  TINYINT(1)    DEFAULT 0,
   is_approved          TINYINT(1)    DEFAULT 0,
   is_subscribed        TINYINT(1)    DEFAULT 0,
   subscription_paid_at DATETIME      NULL,

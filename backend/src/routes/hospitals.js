@@ -34,6 +34,63 @@ async function getHospitalById(id) {
   return row ? formatHospital(row) : null;
 }
 
+async function fetchHospitalDoctors(hospitalId, hospitalName) {
+  return fetchRows(
+    `SELECT d.id, d.user_id, d.name, d.email, d.phone, d.speciality, d.qualification, d.experience_years AS exp,
+            d.consultation_fee AS fee, d.rating, d.opd_timings AS shifts, d.photo,
+            d.is_approved, d.is_subscribed, d.is_hospital_managed AS isHospitalManaged, d.hospital_name, d.city,
+            CASE
+              WHEN d.is_approved = 1 AND d.is_subscribed = 1 THEN 'Active'
+              WHEN d.is_approved = 0 THEN 'Pending Verification'
+              ELSE 'Active'
+            END AS status
+     FROM doctors d
+     WHERE d.id IN (SELECT doctor_id FROM hospital_doctors WHERE hospital_id = ?)
+        OR (d.hospital_name IS NOT NULL AND d.hospital_name LIKE ?)
+     ORDER BY d.id DESC`,
+    [hospitalId, `%${hospitalName}%`]
+  );
+}
+
+async function fetchHospitalAppointments(userId) {
+  return fetchRows(
+    `SELECT
+       a.*,
+       d.name AS doctor_name,
+       d.speciality AS doctor_speciality,
+       d.consultation_fee AS doctor_fee,
+       d.opd_timings AS doctor_opd_timings,
+       h.name AS hospital_name
+     FROM appointments a
+     LEFT JOIN doctors d ON d.id = a.doctor_id
+     LEFT JOIN hospitals h ON h.id = a.hospital_id
+     WHERE h.user_id = ?
+     ORDER BY a.appointment_date DESC, a.time_slot DESC, a.created_at DESC`,
+    [userId]
+  );
+}
+
+function monthKeyForDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+}
+
+function dateLabel(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function isSameDay(dateValue, compare) {
+  const date = new Date(dateValue);
+  return (
+    date.getFullYear() === compare.getFullYear() &&
+    date.getMonth() === compare.getMonth() &&
+    date.getDate() === compare.getDate()
+  );
+}
+
 router.get('/', async (req, res, next) => {
   try {
     const { location, department, search, approval, status } = req.query;
@@ -170,6 +227,206 @@ router.get('/me/profile', protect, async (req, res, next) => {
   }
 });
 
+router.get('/me/analytics', protect, async (req, res, next) => {
+  try {
+    if (req.user.role !== 'hospital') {
+      return res.status(403).json({ success: false, message: 'Forbidden: Hospital access required' });
+    }
+
+    const hospital = await fetchOne('SELECT id, name, city, phone, email FROM hospitals WHERE user_id = ? LIMIT 1', [req.user.id]);
+    if (!hospital) {
+      return res.status(404).json({ success: false, message: 'Hospital profile not found' });
+    }
+
+    const [profile, doctors, appointments, paymentRows] = await Promise.all([
+      getHospitalById(hospital.id),
+      fetchHospitalDoctors(hospital.id, hospital.name),
+      fetchHospitalAppointments(req.user.id),
+      fetchRows(
+        `SELECT id, payment_type, amount, currency, status, payment_method, transaction_ref, paid_at, created_at
+         FROM payments
+         WHERE user_id = ? AND entity_type = 'hospital'
+         ORDER BY COALESCE(paid_at, created_at) DESC, id DESC`,
+        [req.user.id]
+      ),
+    ]);
+
+    const now = new Date();
+    const currentMonthKey = now.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+    const todayAppointments = appointments.filter((item) => item.appointment_date && isSameDay(item.appointment_date, now));
+
+    const normalizedAppointments = appointments.map((item) => {
+      const totalAmount = Number(item.doctor_fee || 0);
+      const platformFee = Math.round(totalAmount * 0.1);
+      const hospitalNet = Math.max(totalAmount - platformFee, 0);
+      return {
+        id: String(item.id),
+        patient: item.patient_name,
+        patientPhone: item.patient_phone,
+        patientEmail: item.patient_email || '',
+        doctor: item.doctor_name || 'Unassigned',
+        speciality: item.doctor_speciality || '',
+        date: item.appointment_date,
+        dateLabel: dateLabel(item.appointment_date),
+        time: item.time_slot,
+        mode: 'Clinic',
+        status: item.workflow_status || item.status,
+        fee: totalAmount,
+        platformFee,
+        hospitalNet,
+        concern: item.concern || '',
+        adminNote: item.admin_note || '',
+        createdAt: item.created_at,
+      };
+    });
+
+    const monthlyMap = new Map();
+    normalizedAppointments.forEach((item) => {
+      const key = monthKeyForDate(item.date);
+      if (!key) return;
+      const current = monthlyMap.get(key) || { month: key, appointments: 0, revenue: 0 };
+      current.appointments += 1;
+      current.revenue += item.hospitalNet;
+      monthlyMap.set(key, current);
+    });
+    const monthly = Array.from(monthlyMap.values())
+      .sort((a, b) => new Date(`01 ${a.month}`).getTime() - new Date(`01 ${b.month}`).getTime())
+      .slice(-6);
+
+    const departmentMap = new Map();
+    normalizedAppointments.forEach((item) => {
+      const dept = item.speciality || 'General';
+      const current = departmentMap.get(dept) || { name: dept, appointments: 0, revenue: 0, rating: 0, doctorCount: 0 };
+      current.appointments += 1;
+      current.revenue += item.hospitalNet;
+      departmentMap.set(dept, current);
+    });
+
+    doctors.forEach((doctor) => {
+      const dept = doctor.speciality || 'General';
+      const current = departmentMap.get(dept) || { name: dept, appointments: 0, revenue: 0, rating: 0, doctorCount: 0 };
+      current.rating += Number(doctor.rating || 0);
+      current.doctorCount += 1;
+      departmentMap.set(dept, current);
+    });
+
+    const departments = Array.from(departmentMap.values()).map((item) => ({
+      name: item.name,
+      appointments: item.appointments,
+      revenue: item.revenue,
+      rating: item.doctorCount ? Number((item.rating / item.doctorCount).toFixed(1)) : 0,
+      fillRate: Math.min(100, item.appointments > 0 ? 60 + item.appointments * 3 : 0),
+      doctorCount: item.doctorCount,
+    }));
+
+    const completedAppointments = normalizedAppointments.filter((item) => item.status === 'Completed');
+    const confirmedAppointments = normalizedAppointments.filter((item) => item.status === 'Confirmed' || item.status === 'Rescheduled');
+    const pendingAppointments = normalizedAppointments.filter((item) => !['Completed', 'Cancelled', 'Cancelled by Patient', 'Cancelled by Doctor', 'No-show'].includes(item.status));
+    const cancelledAppointments = normalizedAppointments.filter((item) => ['Cancelled', 'Cancelled by Patient', 'Cancelled by Doctor', 'No-show'].includes(item.status));
+
+    const consultationPayments = normalizedAppointments.map((item) => ({
+      id: `APT-${item.id}`,
+      sourceType: 'consultation',
+      patient: item.patient,
+      doctor: item.doctor,
+      dept: item.speciality || 'General',
+      date: item.date,
+      dateLabel: item.dateLabel,
+      amount: item.fee,
+      platform: item.platformFee,
+      hospital: item.hospitalNet,
+      method: 'Clinic Booking',
+      status: item.status === 'Completed' ? 'Settled' : item.status === 'Cancelled' || item.status === 'Cancelled by Patient' || item.status === 'Cancelled by Doctor' ? 'Refunded' : 'Pending',
+      transactionRef: '',
+    }));
+
+    const accountPayments = paymentRows.map((payment) => ({
+      id: `PAY-${payment.id}`,
+      sourceType: payment.payment_type,
+      patient: payment.payment_type === 'subscription' ? 'Subscription' : 'Promotion',
+      doctor: hospital.name,
+      dept: payment.payment_type,
+      date: payment.paid_at || payment.created_at,
+      dateLabel: dateLabel(payment.paid_at || payment.created_at),
+      amount: Number(payment.amount || 0),
+      platform: 0,
+      hospital: Number(payment.amount || 0),
+      method: payment.payment_method || 'UPI',
+      status: payment.status === 'Paid' ? 'Settled' : payment.status === 'Failed' ? 'Refunded' : 'Pending',
+      transactionRef: payment.transaction_ref || '',
+    }));
+
+    const allPayments = [...consultationPayments, ...accountPayments].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    const hospitalRevenueThisMonth = consultationPayments
+      .filter((item) => monthKeyForDate(item.date) === currentMonthKey && item.status === 'Settled')
+      .reduce((sum, item) => sum + item.hospital, 0);
+    const pendingRevenue = consultationPayments
+      .filter((item) => item.status === 'Pending')
+      .reduce((sum, item) => sum + item.hospital, 0);
+
+    const opdSchedules = doctors.map((doctor) => {
+      const doctorAppointments = normalizedAppointments.filter((item) => item.doctor === doctor.name);
+      const upcomingBooked = doctorAppointments.filter((item) => !['Completed', 'Cancelled', 'Cancelled by Patient', 'Cancelled by Doctor', 'No-show'].includes(item.status)).length;
+      const slots = Math.max(12, upcomingBooked + 6);
+      return {
+        id: String(doctor.id),
+        dept: doctor.speciality || 'General',
+        doctor: doctor.name,
+        days: doctor.shifts || 'Schedule pending',
+        start: doctor.shifts || '9:00 AM',
+        end: doctor.shifts || '5:00 PM',
+        slots,
+        booked: upcomingBooked,
+        status: upcomingBooked >= slots ? 'Full' : doctor.status === 'Pending Verification' ? 'Closed' : 'Open',
+        consultationFee: Number(doctor.fee || 0),
+        isHospitalManaged: Boolean(Number(doctor.isHospitalManaged || 0)),
+      };
+    });
+
+    res.json({
+      success: true,
+      analytics: {
+        profile,
+        doctors,
+        appointments: normalizedAppointments,
+        todayAppointments: todayAppointments.map((item) => ({
+          id: String(item.id),
+          patient: item.patient_name,
+          doctor: item.doctor_name || hospital.name,
+          dept: item.doctor_speciality || 'General',
+          time: item.time_slot,
+          status: item.workflow_status || item.status,
+        })),
+        stats: {
+          totalDoctors: doctors.length,
+          activeDoctors: doctors.filter((doctor) => doctor.status === 'Active').length,
+          totalAppointments: normalizedAppointments.length,
+          confirmedAppointments: confirmedAppointments.length,
+          pendingAppointments: pendingAppointments.length,
+          completedAppointments: completedAppointments.length,
+          cancelledAppointments: cancelledAppointments.length,
+          todayAppointments: todayAppointments.length,
+          patientsServed: new Set(normalizedAppointments.map((item) => `${item.patient}-${item.patientPhone}`)).size,
+          averageRating: doctors.length
+            ? Number((doctors.reduce((sum, doctor) => sum + Number(doctor.rating || 0), 0) / doctors.length).toFixed(2))
+            : Number(profile?.rating || 0),
+          monthlyRevenue: hospitalRevenueThisMonth,
+          pendingRevenue,
+        },
+        departments,
+        monthly,
+        payments: allPayments,
+        opdSchedules,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/hospitals/me/doctors — list doctors affiliated with logged in hospital
 router.get('/me/doctors', protect, async (req, res, next) => {
   try {
@@ -181,7 +438,7 @@ router.get('/me/doctors', protect, async (req, res, next) => {
     const doctors = await fetchRows(
       `SELECT d.id, d.name, d.email, d.phone, d.speciality, d.qualification, d.experience_years AS exp,
               d.consultation_fee AS fee, d.rating, d.opd_timings AS shifts, d.photo,
-              d.is_approved, d.is_subscribed, d.hospital_name,
+              d.is_approved, d.is_subscribed, d.is_hospital_managed AS isHospitalManaged, d.hospital_name,
               CASE
                 WHEN d.is_approved = 1 AND d.is_subscribed = 1 THEN 'Active'
                 WHEN d.is_approved = 0 THEN 'Pending Verification'
@@ -251,8 +508,8 @@ router.post('/me/doctors', protect, async (req, res, next) => {
 
       const [docRes] = await connection.execute(
         `INSERT INTO doctors
-          (user_id, name, email, phone, gender, photo, registration_no, qualification, speciality, experience_years, hospital_name, clinic_address, city, area, consultation_fee, consultation_type, opd_timings, bio, rating, is_approved, is_subscribed)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1)`,
+          (user_id, name, email, phone, gender, photo, registration_no, qualification, speciality, experience_years, hospital_name, clinic_address, city, area, consultation_fee, consultation_type, opd_timings, bio, rating, is_hospital_managed, is_approved, is_subscribed)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 1)`,
         [
           userId,
           doctorName,
@@ -312,6 +569,48 @@ router.delete('/me/doctors/:doctorId', protect, async (req, res, next) => {
       [hospital.id, req.params.doctorId]
     );
     res.json({ success: true, message: 'Doctor unlinked from hospital' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch('/me/doctors/:doctorId', protect, async (req, res, next) => {
+  try {
+    const hospital = await fetchOne('SELECT id, name FROM hospitals WHERE user_id = ? LIMIT 1', [req.user.id]);
+    if (!hospital) {
+      return res.status(404).json({ success: false, message: 'Hospital profile not found' });
+    }
+
+    const doctor = await fetchOne(
+      `SELECT d.id, d.name, d.opd_timings, d.consultation_fee, d.is_hospital_managed
+       FROM doctors d
+       WHERE d.id = ?
+         AND (
+           d.id IN (SELECT doctor_id FROM hospital_doctors WHERE hospital_id = ?)
+           OR (d.hospital_name IS NOT NULL AND d.hospital_name LIKE ?)
+         )
+       LIMIT 1`,
+      [req.params.doctorId, hospital.id, `%${hospital.name}%`]
+    );
+
+    if (!doctor) {
+      return res.status(404).json({ success: false, message: 'Doctor not found for this hospital' });
+    }
+
+    const updates = req.body || {};
+    const pool = getPool();
+    await pool.execute(
+      `UPDATE doctors
+       SET opd_timings = ?, consultation_fee = ?
+       WHERE id = ?`,
+      [
+        updates.opdTimings ?? doctor.opd_timings ?? 'Mon-Sat 9:00 AM - 5:00 PM',
+        updates.consultationFee ?? doctor.consultation_fee ?? 500,
+        req.params.doctorId,
+      ]
+    );
+
+    return res.json({ success: true, message: 'Hospital doctor timing updated successfully' });
   } catch (error) {
     next(error);
   }
